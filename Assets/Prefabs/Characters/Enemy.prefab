@@ -138,6 +138,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4445645146411133250}
+  - component: {fileID: 6628942544418760220}
   m_Layer: 9
   m_Name: Visual
   m_TagString: Untagged
@@ -161,6 +162,22 @@ Transform:
   - {fileID: 8386859651860503825}
   m_Father: {fileID: 7947561121581098808}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &6628942544418760220
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3747001239453544164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2df68da2ab1454efe98eb86f1ef205ca, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GhostArena.GhostVisual
+  _visual: {fileID: 4445645146411133250}
+  _bobHeight: 0.065
+  _bobSpeed: 2.55
+  _squashAmount: 0.022
 --- !u!1001 &8353795879245642490
 PrefabInstance:
   m_ObjectHideFlags: 0
