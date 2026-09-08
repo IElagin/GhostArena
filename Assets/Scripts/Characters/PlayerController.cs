@@ -10,10 +10,10 @@ namespace GhostArena
 
         [SerializeField] private Rigidbody _body;
         [SerializeField] private ActorHealth _health;
-        [SerializeField] private float _movementSpeed = 5f;
 
         private Camera _gameplayCamera;
         private InputAction _moveAction;
+        private float _movementSpeed;
         private bool _isGameplayActive;
 
         public ActorHealth Health => _health;
@@ -28,7 +28,9 @@ namespace GhostArena
 
         public bool CanReceiveDamage => _isGameplayActive && _health != null && _health.IsAlive;
 
-        public void Initialize(Camera gameplayCamera)
+        public float MovementSpeed => _movementSpeed;
+
+        public void Initialize(Camera gameplayCamera, float movementSpeed)
         {
             if (_moveAction != null)
             {
@@ -44,6 +46,12 @@ namespace GhostArena
                 throw new InvalidOperationException("Player controller references are not configured.");
             }
 
+            if (movementSpeed <= 0f || float.IsNaN(movementSpeed) || float.IsInfinity(movementSpeed))
+            {
+                throw new ArgumentOutOfRangeException(nameof(movementSpeed));
+            }
+
+            _movementSpeed = movementSpeed;
             _body.useGravity = false;
             _body.constraints = RigidbodyConstraints.FreezePositionY | RigidbodyConstraints.FreezeRotation;
             transform.forward = Vector3.forward;

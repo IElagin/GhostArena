@@ -6,16 +6,54 @@ namespace GhostArena
     public sealed class GhostVisual : MonoBehaviour
     {
         [SerializeField] private Transform _visual;
-        [SerializeField] private float _bobHeight = 0.06f;
-        [SerializeField] private float _bobSpeed = 2.4f;
-        [SerializeField] private float _squashAmount = 0.025f;
+        [SerializeField] private GhostVisualConfig _config;
 
         private Vector3 _baseLocalPosition;
         private Vector3 _baseLocalScale;
+        private GhostVisualSettings _settings;
         private float _elapsed;
         private bool _isInitialized;
 
         public Transform Visual => _visual;
+
+        public GhostVisualConfig Config => _config;
+
+        public GhostVisualSettings Settings => _settings;
+
+        public GhostVisualSettings CreateSettings()
+        {
+            if (_config == null)
+            {
+                throw new InvalidOperationException("Ghost visual config is not assigned.");
+            }
+
+            return _config.CreateSettings();
+        }
+
+        public void Initialize(GhostVisualSettings settings)
+        {
+            if (_isInitialized)
+            {
+                throw new InvalidOperationException("Ghost visual is already initialized.");
+            }
+
+            if (settings.BobHeight < 0f
+                || float.IsNaN(settings.BobHeight)
+                || float.IsInfinity(settings.BobHeight)
+                || settings.BobSpeed <= 0f
+                || float.IsNaN(settings.BobSpeed)
+                || float.IsInfinity(settings.BobSpeed)
+                || settings.SquashAmount < 0f
+                || float.IsNaN(settings.SquashAmount)
+                || float.IsInfinity(settings.SquashAmount))
+            {
+                throw new ArgumentOutOfRangeException(nameof(settings));
+            }
+
+            _settings = settings;
+            _elapsed = 0f;
+            _isInitialized = true;
+        }
 
         private void Awake()
         {
@@ -24,23 +62,22 @@ namespace GhostArena
                 throw new InvalidOperationException("Ghost visual transform is not configured.");
             }
 
-            if (_bobHeight < 0f || _bobSpeed <= 0f || _squashAmount < 0f)
-            {
-                throw new InvalidOperationException("Ghost visual animation values are invalid.");
-            }
-
             _baseLocalPosition = _visual.localPosition;
             _baseLocalScale = _visual.localScale;
-            _isInitialized = true;
         }
 
         private void Update()
         {
+            if (_isInitialized == false)
+            {
+                return;
+            }
+
             _elapsed += Time.deltaTime;
-            float wave = Mathf.Sin(_elapsed * _bobSpeed);
-            float verticalScale = 1f + wave * _squashAmount;
-            float horizontalScale = 1f - wave * _squashAmount * 0.5f;
-            _visual.localPosition = _baseLocalPosition + Vector3.up * (wave * _bobHeight);
+            float wave = Mathf.Sin(_elapsed * _settings.BobSpeed);
+            float verticalScale = 1f + wave * _settings.SquashAmount;
+            float horizontalScale = 1f - wave * _settings.SquashAmount * 0.5f;
+            _visual.localPosition = _baseLocalPosition + Vector3.up * (wave * _settings.BobHeight);
             _visual.localScale = Vector3.Scale(
                 _baseLocalScale,
                 new Vector3(horizontalScale, verticalScale, horizontalScale));

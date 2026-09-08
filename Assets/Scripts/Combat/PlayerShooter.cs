@@ -14,13 +14,17 @@ namespace GhostArena
         private GameObject _projectilePrefab;
         private Transform _runtimeRoot;
         private InputAction _fireAction;
+        private ProjectileSettings _projectileSettings;
         private bool _isGameplayActive;
 
         public event Action<Projectile> Shot;
 
         public int ShotsFired { get; private set; }
 
-        public void Initialize(GameObject projectilePrefab, Transform runtimeRoot)
+        public void Initialize(
+            GameObject projectilePrefab,
+            Transform runtimeRoot,
+            ProjectileSettings projectileSettings)
         {
             if (_fireAction != null)
             {
@@ -34,11 +38,23 @@ namespace GhostArena
                 ? runtimeRoot
                 : throw new ArgumentNullException(nameof(runtimeRoot));
 
+            if (projectileSettings.MovementSpeed <= 0f
+                || float.IsNaN(projectileSettings.MovementSpeed)
+                || float.IsInfinity(projectileSettings.MovementSpeed)
+                || projectileSettings.Damage <= 0
+                || projectileSettings.Lifetime <= 0f
+                || float.IsNaN(projectileSettings.Lifetime)
+                || float.IsInfinity(projectileSettings.Lifetime))
+            {
+                throw new ArgumentOutOfRangeException(nameof(projectileSettings));
+            }
+
             if (_muzzle == null || _health == null)
             {
                 throw new InvalidOperationException("Player shooter references are not configured.");
             }
 
+            _projectileSettings = projectileSettings;
             _fireAction = new InputAction(
                 "Fire",
                 InputActionType.Button,
@@ -92,7 +108,7 @@ namespace GhostArena
                 throw new InvalidOperationException("Projectile prefab has no Projectile component.");
             }
 
-            projectile.Initialize(transform.forward, gameObject);
+            projectile.Initialize(transform.forward, gameObject, _projectileSettings);
             ShotsFired++;
             Shot?.Invoke(projectile);
         }

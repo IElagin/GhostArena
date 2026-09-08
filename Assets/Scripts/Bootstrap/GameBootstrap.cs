@@ -8,9 +8,9 @@ namespace GhostArena
     {
         private const string PressOnlyInteraction = "Press(behavior=0)";
         private const int TargetFrameRate = 60;
-        private const int PlayerMaximumHealth = 3;
-        private const int EnemyMaximumHealth = 2;
-        private const float EnemySpawnInterval = 3f;
+
+        [Header("Configuration")]
+        [SerializeField] private GameplayConfig _config;
 
         [Header("Prefabs")]
         [SerializeField] private GameObject _playerPrefab;
@@ -23,16 +23,10 @@ namespace GhostArena
         [SerializeField] private Camera _gameplayCamera;
         [SerializeField] private Vector2 _arenaHalfExtents = new Vector2(8.3f, 6.3f);
 
-        [Header("Match rules")]
-        [SerializeField] private WinRule _winRule = WinRule.SurviveTime;
-        [SerializeField] private float _surviveDuration = 60f;
-        [SerializeField] private int _killTarget = 10;
-        [SerializeField] private LoseRule _loseRule = LoseRule.PlayerDeath;
-        [SerializeField] private int _totalSpawnsLimit = 25;
-
         private Transform _runtimeRoot;
         private InputAction _pauseAction;
         private InputAction _restartAction;
+        private GameplaySettings _settings;
         private bool _isTearingDown;
 
         public event Action SessionChanged;
@@ -47,15 +41,19 @@ namespace GhostArena
 
         public PlayerShooter Shooter { get; private set; }
 
-        public WinRule WinRule => _winRule;
+        public GameplayConfig Config => _config;
 
-        public LoseRule LoseRule => _loseRule;
+        public GameplaySettings Settings => _settings;
 
-        public float SurviveDuration => _surviveDuration;
+        public WinRule WinRule => _settings.WinRule;
 
-        public int KillTarget => _killTarget;
+        public LoseRule LoseRule => _settings.LoseRule;
 
-        public int TotalSpawnsLimit => _totalSpawnsLimit;
+        public float SurviveDuration => _settings.SurviveDuration;
+
+        public int KillTarget => _settings.KillTarget;
+
+        public int TotalSpawnsLimit => _settings.TotalSpawnsLimit;
 
         public void Restart()
         {
@@ -85,7 +83,7 @@ namespace GhostArena
         {
             QualitySettings.vSyncCount = 0;
             Application.targetFrameRate = TargetFrameRate;
-            ValidateConfiguration();
+            CaptureSessionConfiguration();
             CreateGlobalInputActions();
         }
 
@@ -154,8 +152,10 @@ namespace GhostArena
 
         private void StartSession()
         {
+            SessionConfiguration configuration = CaptureSessionConfiguration();
             TearDownSession();
             Time.timeScale = 1f;
+            _settings = configuration.Gameplay;
 
             _runtimeRoot = new GameObject("Session Runtime").transform;
 
@@ -172,22 +172,23 @@ namespace GhostArena
                 throw new InvalidOperationException("Player prefab is missing gameplay components.");
             }
 
-            Player.Health.Initialize(PlayerMaximumHealth);
-            Player.Initialize(_gameplayCamera);
+            Player.Health.Initialize(_settings.PlayerMaximumHealth);
+            Player.Initialize(_gameplayCamera, _settings.PlayerMovementSpeed);
+            playerObject.GetComponentInChildren<GhostVisual>(true).Initialize(configuration.PlayerVisual);
 
             Enemies = new EntityRegistry<EnemyController>();
             SessionStats stats = new SessionStats();
             IGameCondition winCondition = ConditionFactory.CreateWin(
-                _winRule,
+                _settings.WinRule,
                 stats,
                 Player.Health.Model,
-                _surviveDuration,
-                _killTarget);
+                _settings.SurviveDuration,
+                _settings.KillTarget);
             IGameCondition loseCondition = ConditionFactory.CreateLose(
-                _loseRule,
+                _settings.LoseRule,
                 stats,
                 Player.Health.Model,
-                _totalSpawnsLimit);
+                _settings.TotalSpawnsLimit);
             Session = new GameSession(stats, winCondition, loseCondition);
             Session.StateChanged += OnSessionStateChanged;
             Player.Health.Died += OnPlayerDied;
@@ -197,10 +198,11 @@ namespace GhostArena
                 _enemySpawns,
                 _runtimeRoot,
                 _arenaHalfExtents,
-                EnemySpawnInterval,
-                EnemyMaximumHealth);
+                _settings.SpawnInterval,
+                _settings.Enemy,
+                configuration.EnemyVisual);
             Spawner.Spawned += OnEnemySpawned;
-            Shooter.Initialize(_projectilePrefab, _runtimeRoot);
+            Shooter.Initialize(_projectilePrefab, _runtimeRoot, _settings.Projectile);
 
             Session.Start();
             SessionChanged?.Invoke();
@@ -347,8 +349,13 @@ namespace GhostArena
             }
         }
 
-        private void ValidateConfiguration()
+        private SessionConfiguration CaptureSessionConfiguration()
         {
+            if (_config == null)
+            {
+                throw new InvalidOperationException("Gameplay config is not assigned.");
+            }
+
             if (_playerPrefab == null || _enemyPrefab == null || _projectilePrefab == null)
             {
                 throw new InvalidOperationException("Gameplay prefabs are not configured.");
@@ -371,6 +378,62 @@ namespace GhostArena
                     throw new InvalidOperationException("Enemy spawn points cannot contain null.");
                 }
             }
+
+            if (_arenaHalfExtents.x <= 0f || _arenaHalfExtents.y <= 0f
+                || float.IsNaN(_arenaHalfExtents.x) || float.IsInfinity(_arenaHalfExtents.x)
+                || float.IsNaN(_arenaHalfExtents.y) || float.IsInfinity(_arenaHalfExtents.y))
+            {
+                throw new InvalidOperationException("Arena half extents must be finite and positive.");
+            }
+
+            if (_playerPrefab.GetComponent<PlayerController>() == null
+                || _playerPrefab.GetComponent<PlayerShooter>() == null)
+            {
+                throw new InvalidOperationException("Player prefab is missing gameplay components.");
+            }
+
+            if (_enemyPrefab.GetComponent<EnemyController>() == null
+                || _enemyPrefab.GetComponent<ContactDamage>() == null)
+            {
+                throw new InvalidOperationException("Enemy prefab is missing gameplay components.");
+            }
+
+            if (_projectilePrefab.GetComponent<Projectile>() == null)
+            {
+                throw new InvalidOperationException("Projectile prefab has no Projectile component.");
+            }
+
+            GhostVisual playerVisual = _playerPrefab.GetComponentInChildren<GhostVisual>(true);
+            GhostVisual enemyVisual = _enemyPrefab.GetComponentInChildren<GhostVisual>(true);
+
+            if (playerVisual == null || enemyVisual == null)
+            {
+                throw new InvalidOperationException("Character prefabs are missing GhostVisual components.");
+            }
+
+            return new SessionConfiguration(
+                _config.CreateSettings(),
+                playerVisual.CreateSettings(),
+                enemyVisual.CreateSettings());
+        }
+
+        private readonly struct SessionConfiguration
+        {
+            public SessionConfiguration(
+                GameplaySettings gameplay,
+                GhostVisualSettings playerVisual,
+                GhostVisualSettings enemyVisual)
+            {
+                Gameplay = gameplay;
+                PlayerVisual = playerVisual;
+                EnemyVisual = enemyVisual;
+            }
+
+            public GameplaySettings Gameplay { get; }
+
+            public GhostVisualSettings PlayerVisual { get; }
+
+            public GhostVisualSettings EnemyVisual { get; }
         }
     }
 }

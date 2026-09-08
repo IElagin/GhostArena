@@ -4914,6 +4914,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 576f224bbb0884f378bb2272e954e656, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GhostArena.CombatFeedback
+  _config: {fileID: 11400000, guid: 85ee1f4815a8a4d0086ce09631931ebe, type: 2}
   _bootstrap: {fileID: 2002979161}
   _effectRoot: {fileID: 374395961}
   _resultAudioSource: {fileID: 248467508}
@@ -4922,16 +4923,6 @@ MonoBehaviour:
   - {fileID: 286532436}
   - {fileID: 388490716}
   - {fileID: 1453371110}
-  _shotClip: {fileID: 8300000, guid: b1162296da94b48e0973b1ade8f871be, type: 3}
-  _enemyHitClip: {fileID: 8300000, guid: d17985c443d2f4045a4ef9c359b0ca4c, type: 3}
-  _enemyDeathClip: {fileID: 8300000, guid: 13413b1c8e1e74a46878faa9be20511d, type: 3}
-  _playerHurtClip: {fileID: 8300000, guid: 3c669b66db3854356b78069b6fc4fd0f, type: 3}
-  _spawnClip: {fileID: 8300000, guid: fdcb522f3bd2540c5a6fc7fb439144e5, type: 3}
-  _victoryClip: {fileID: 8300000, guid: 776a70d92b47e42b3ae4aede95403339, type: 3}
-  _defeatClip: {fileID: 8300000, guid: d53ad52debd5a4798925eff3c047aaa9, type: 3}
-  _spawnEffectPrefab: {fileID: 3154618420425726272, guid: 27d75c776df0547d5b50a0d87de78ccc, type: 3}
-  _hitEffectPrefab: {fileID: 8862832307559941542, guid: 314e8eb4e4a614ddf9539d98f066f837, type: 3}
-  _deathEffectPrefab: {fileID: 4879778370642626933, guid: f3268f2ac67b14ee1be0fb748a84aed6, type: 3}
 --- !u!114 &1506977826
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6306,6 +6297,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 691293cd8b53046df9ef999c61c5c2a2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GhostArena.GameBootstrap
+  _config: {fileID: 11400000, guid: 0c500dd1d6c72469992d83bf7c769576, type: 2}
   _playerPrefab: {fileID: 4853446602475246186, guid: 87671e35acf70479ba3b1b538fcdee3e, type: 3}
   _enemyPrefab: {fileID: 1312004891444792460, guid: 5ea3883196b3e441a9405e66c085ad23, type: 3}
   _projectilePrefab: {fileID: 5937920869235662331, guid: dcf2e202c361a4510bd0c2723857f567, type: 3}
@@ -6317,11 +6309,6 @@ MonoBehaviour:
   - {fileID: 2080343108}
   _gameplayCamera: {fileID: 1019080287}
   _arenaHalfExtents: {x: 8.3, y: 6.3}
-  _winRule: 0
-  _surviveDuration: 60
-  _killTarget: 10
-  _loseRule: 0
-  _totalSpawnsLimit: 25
 --- !u!4 &2002979162
 Transform:
   m_ObjectHideFlags: 0

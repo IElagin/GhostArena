@@ -6,11 +6,11 @@ namespace GhostArena
     public sealed class Projectile : MonoBehaviour
     {
         [SerializeField] private Rigidbody _body;
-        [SerializeField] private float _movementSpeed = 14f;
-        [SerializeField] private int _damage = 1;
-        [SerializeField] private float _lifetime = 2f;
 
         private GameObject _owner;
+        private float _movementSpeed;
+        private int _damage;
+        private float _lifetime;
         private float _timeRemaining;
         private bool _isConsumed;
         private bool _isInitialized;
@@ -19,7 +19,13 @@ namespace GhostArena
 
         public bool IsConsumed => _isConsumed;
 
-        public void Initialize(Vector3 direction, GameObject owner)
+        public float MovementSpeed => _movementSpeed;
+
+        public int Damage => _damage;
+
+        public float Lifetime => _lifetime;
+
+        public void Initialize(Vector3 direction, GameObject owner, ProjectileSettings settings)
         {
             if (_isInitialized)
             {
@@ -36,7 +42,21 @@ namespace GhostArena
                 throw new ArgumentOutOfRangeException(nameof(direction));
             }
 
+            if (settings.MovementSpeed <= 0f
+                || float.IsNaN(settings.MovementSpeed)
+                || float.IsInfinity(settings.MovementSpeed)
+                || settings.Damage <= 0
+                || settings.Lifetime <= 0f
+                || float.IsNaN(settings.Lifetime)
+                || float.IsInfinity(settings.Lifetime))
+            {
+                throw new ArgumentOutOfRangeException(nameof(settings));
+            }
+
             _owner = owner != null ? owner : throw new ArgumentNullException(nameof(owner));
+            _movementSpeed = settings.MovementSpeed;
+            _damage = settings.Damage;
+            _lifetime = settings.Lifetime;
             _isInitialized = true;
             _timeRemaining = _lifetime;
             transform.forward = direction.normalized;

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -6,15 +7,14 @@ namespace GhostArena
 {
     public sealed class HudPresenter : MonoBehaviour
     {
-        private const int HealthDotCount = 3;
-
         [SerializeField] private GameBootstrap _bootstrap;
         [SerializeField] private UIDocument _document;
 
-        private readonly VisualElement[] _healthDots = new VisualElement[HealthDotCount];
+        private readonly List<VisualElement> _healthDots = new List<VisualElement>();
         private GameSession _session;
         private SessionStats _stats;
         private ActorHealth _playerHealth;
+        private VisualElement _healthRow;
         private VisualElement _pauseOverlay;
         private VisualElement _resultOverlay;
         private VisualElement _fallenCard;
@@ -62,9 +62,7 @@ namespace GhostArena
         private void BindElements()
         {
             VisualElement root = _document.rootVisualElement;
-            _healthDots[0] = RequireElement<VisualElement>(root, "hp-dot-1");
-            _healthDots[1] = RequireElement<VisualElement>(root, "hp-dot-2");
-            _healthDots[2] = RequireElement<VisualElement>(root, "hp-dot-3");
+            _healthRow = RequireElement<VisualElement>(root, "health-row");
             _pauseOverlay = RequireElement<VisualElement>(root, "pause-overlay");
             _resultOverlay = RequireElement<VisualElement>(root, "result-overlay");
             _fallenCard = RequireElement<VisualElement>(root, "fallen-card");
@@ -120,6 +118,7 @@ namespace GhostArena
 
             _stats = _session.Stats;
             _playerHealth = _bootstrap.Player.Health;
+            RebuildHealthDots();
             _session.StateChanged += OnSessionStateChanged;
             _stats.Changed += OnStatsChanged;
             _playerHealth.Changed += OnHealthChanged;
@@ -167,9 +166,31 @@ namespace GhostArena
         {
             int currentHealth = _playerHealth == null ? 0 : _playerHealth.Current;
 
-            for (int index = 0; index < _healthDots.Length; index++)
+            for (int index = 0; index < _healthDots.Count; index++)
             {
                 _healthDots[index].EnableInClassList("hp-dot--empty", index >= currentHealth);
+            }
+        }
+
+        private void RebuildHealthDots()
+        {
+            foreach (VisualElement healthDot in _healthDots)
+            {
+                healthDot.RemoveFromHierarchy();
+            }
+
+            _healthDots.Clear();
+
+            for (int index = 0; index < _playerHealth.Maximum; index++)
+            {
+                VisualElement healthDot = new VisualElement
+                {
+                    name = "hp-dot-" + (index + 1),
+                    pickingMode = PickingMode.Ignore
+                };
+                healthDot.AddToClassList("hp-dot");
+                _healthRow.Add(healthDot);
+                _healthDots.Add(healthDot);
             }
         }
 

@@ -7,19 +7,14 @@ namespace GhostArena
 {
     public sealed class CombatFeedback : MonoBehaviour
     {
-        private const float ShotVolume = 0.8f;
-        private const float EnemyHitVolume = 0.9f;
-        private const float EnemyDeathVolume = 0.9f;
-        private const float PlayerHurtVolume = 0.95f;
-        private const float ResultVolume = 0.95f;
-        private const float SpawnVolume = 0.75f;
-        private const float FlashDuration = 0.09f;
+        private const float PlayerDeathEffectHeight = 0.4f;
+        private const float EnemyEffectHeight = 0.35f;
+        private const float ProjectileHitEffectHeight = 0.45f;
         private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
         private static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
-        private static readonly Color EnemyFlashColor = new Color(1f, 0.86f, 0.58f, 1f);
-        private static readonly Color EnemyFlashEmission = new Color(1.2f, 0.55f, 0.12f, 1f);
-        private static readonly Color PlayerFlashColor = new Color(1f, 0.54f, 0.49f, 1f);
-        private static readonly Color PlayerFlashEmission = new Color(1.1f, 0.18f, 0.12f, 1f);
+
+        [Header("Configuration")]
+        [SerializeField] private CombatFeedbackConfig _config;
 
         [Header("Session")]
         [SerializeField] private GameBootstrap _bootstrap;
@@ -28,18 +23,6 @@ namespace GhostArena
         [Header("Audio")]
         [SerializeField] private AudioSource _resultAudioSource;
         [SerializeField] private AudioSource[] _sfxVoices;
-        [SerializeField] private AudioClip _shotClip;
-        [SerializeField] private AudioClip _enemyHitClip;
-        [SerializeField] private AudioClip _enemyDeathClip;
-        [SerializeField] private AudioClip _playerHurtClip;
-        [SerializeField] private AudioClip _spawnClip;
-        [SerializeField] private AudioClip _victoryClip;
-        [SerializeField] private AudioClip _defeatClip;
-
-        [Header("Effects")]
-        [SerializeField] private ParticleSystem _spawnEffectPrefab;
-        [SerializeField] private ParticleSystem _hitEffectPrefab;
-        [SerializeField] private ParticleSystem _deathEffectPrefab;
 
         private readonly Dictionary<EnemyController, Action> _enemyHealthHandlers =
             new Dictionary<EnemyController, Action>();
@@ -51,9 +34,14 @@ namespace GhostArena
         private ActorHealth _playerHealth;
         private EntityRegistry<EnemyController> _enemies;
         private PlayerShooter _shooter;
+        private CombatFeedbackSettings _settings;
         private int _nextSfxVoice;
 
         public GameSession BoundSession => _session;
+
+        public CombatFeedbackConfig Config => _config;
+
+        public CombatFeedbackSettings Settings => _settings;
 
         private void OnEnable()
         {
@@ -104,6 +92,11 @@ namespace GhostArena
 
         private void ValidateConfiguration()
         {
+            if (_config == null)
+            {
+                throw new InvalidOperationException("Combat feedback config is not assigned.");
+            }
+
             if (_bootstrap == null || _effectRoot == null || _resultAudioSource == null)
             {
                 throw new InvalidOperationException("Combat feedback scene references are not configured.");
@@ -122,23 +115,16 @@ namespace GhostArena
                 }
             }
 
-            if (_shotClip == null || _enemyHitClip == null || _enemyDeathClip == null
-                || _playerHurtClip == null || _spawnClip == null
-                || _victoryClip == null || _defeatClip == null)
-            {
-                throw new InvalidOperationException("Combat feedback audio clips are not configured.");
-            }
-
-            if (_spawnEffectPrefab == null || _hitEffectPrefab == null || _deathEffectPrefab == null)
-            {
-                throw new InvalidOperationException("Combat feedback effect prefabs are not configured.");
-            }
+            _config.Validate();
         }
 
         private void RebindSession()
         {
+            CombatFeedbackSettings settings = _config.CreateSettings();
             UnbindSession();
             ClearTransientFeedback();
+            _settings = settings;
+            ApplySourceGains();
             _session = _bootstrap.Session;
 
             if (_session == null || _bootstrap.Player == null || _bootstrap.Enemies == null
@@ -164,6 +150,16 @@ namespace GhostArena
             }
 
             AudioListener.pause = _session.State == GameState.Paused;
+        }
+
+        private void ApplySourceGains()
+        {
+            _resultAudioSource.volume = _settings.ResultSourceGain;
+
+            foreach (AudioSource sfxVoice in _sfxVoices)
+            {
+                sfxVoice.volume = _settings.SfxSourceGain;
+            }
         }
 
         private void UnbindSession()
@@ -415,7 +411,7 @@ namespace GhostArena
         {
             float elapsed = 0f;
 
-            while (elapsed < FlashDuration)
+            while (elapsed < _settings.FlashDuration)
             {
                 elapsed += Time.deltaTime;
                 yield return null;
@@ -470,26 +466,38 @@ namespace GhostArena
             StopAllCoroutines();
             RestoreAllFlashes();
             _resultAudioSource.Stop();
-            AudioClip resultClip = result == GameResult.Victory ? _victoryClip : _defeatClip;
-            _resultAudioSource.PlayOneShot(resultClip, ResultVolume);
+            AudioClip resultClip = result == GameResult.Victory
+                ? _settings.VictoryClip
+                : _settings.DefeatClip;
+            float resultGain = result == GameResult.Victory
+                ? _settings.VictoryGain
+                : _settings.DefeatGain;
+            _resultAudioSource.PlayOneShot(resultClip, resultGain);
         }
 
         private void OnPlayerHealthChanged()
         {
-            PlayCue(_playerHurtClip, PlayerHurtVolume);
-            Flash(_bootstrap.Player.gameObject, PlayerFlashColor, PlayerFlashEmission);
+            PlayCue(_settings.PlayerHurtClip, _settings.PlayerHurtGain);
+            Flash(
+                _bootstrap.Player.gameObject,
+                _settings.PlayerFlashColor,
+                _settings.PlayerFlashEmission);
         }
 
         private void OnPlayerDied()
         {
-            PlayEffect(_deathEffectPrefab, _bootstrap.Player.transform.position + Vector3.up * 0.4f);
+            PlayEffect(
+                _settings.DeathEffectPrefab,
+                _bootstrap.Player.transform.position + Vector3.up * PlayerDeathEffectHeight);
         }
 
         private void OnEnemyAdded(EnemyController enemy)
         {
             SubscribeEnemy(enemy);
-            PlayEffect(_spawnEffectPrefab, enemy.transform.position + Vector3.up * 0.35f);
-            PlayCue(_spawnClip, SpawnVolume);
+            PlayEffect(
+                _settings.SpawnEffectPrefab,
+                enemy.transform.position + Vector3.up * EnemyEffectHeight);
+            PlayCue(_settings.SpawnClip, _settings.SpawnGain);
         }
 
         private void OnEnemyRemoved(EnemyController enemy)
@@ -504,20 +512,22 @@ namespace GhostArena
                 return;
             }
 
-            PlayCue(_enemyHitClip, EnemyHitVolume);
-            Flash(enemy.gameObject, EnemyFlashColor, EnemyFlashEmission);
+            PlayCue(_settings.EnemyHitClip, _settings.EnemyHitGain);
+            Flash(enemy.gameObject, _settings.EnemyFlashColor, _settings.EnemyFlashEmission);
         }
 
         private void OnEnemyDied(EnemyController enemy)
         {
-            PlayEffect(_deathEffectPrefab, enemy.transform.position + Vector3.up * 0.35f);
-            PlayCue(_enemyDeathClip, EnemyDeathVolume);
+            PlayEffect(
+                _settings.DeathEffectPrefab,
+                enemy.transform.position + Vector3.up * EnemyEffectHeight);
+            PlayCue(_settings.EnemyDeathClip, _settings.EnemyDeathGain);
         }
 
         private void OnShot(Projectile projectile)
         {
             _trackedProjectiles.RemoveWhere(trackedProjectile => trackedProjectile == null);
-            PlayCue(_shotClip, ShotVolume);
+            PlayCue(_settings.ShotClip, _settings.ShotGain);
 
             if (projectile != null && _trackedProjectiles.Add(projectile))
             {
@@ -532,7 +542,9 @@ namespace GhostArena
 
             if (enemy != null)
             {
-                PlayEffect(_hitEffectPrefab, enemy.transform.position + Vector3.up * 0.45f);
+                PlayEffect(
+                    _settings.HitEffectPrefab,
+                    enemy.transform.position + Vector3.up * ProjectileHitEffectHeight);
             }
         }
 

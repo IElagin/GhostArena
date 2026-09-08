@@ -10,7 +10,8 @@ namespace GhostArena
         private readonly Transform _runtimeRoot;
         private readonly Vector2 _arenaHalfExtents;
         private readonly float _spawnInterval;
-        private readonly int _maximumHealth;
+        private readonly EnemySettings _enemySettings;
+        private readonly GhostVisualSettings _visualSettings;
         private float _elapsed;
         private bool _isDisposed;
 
@@ -20,7 +21,8 @@ namespace GhostArena
             Transform runtimeRoot,
             Vector2 arenaHalfExtents,
             float spawnInterval,
-            int maximumHealth)
+            EnemySettings enemySettings,
+            GhostVisualSettings visualSettings)
         {
             _enemyPrefab = enemyPrefab != null
                 ? enemyPrefab
@@ -47,9 +49,9 @@ namespace GhostArena
                 throw new ArgumentOutOfRangeException(nameof(spawnInterval));
             }
 
-            if (maximumHealth <= 0)
+            if (enemySettings.MaximumHealth <= 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(maximumHealth));
+                throw new ArgumentOutOfRangeException(nameof(enemySettings));
             }
 
             if (arenaHalfExtents.x <= 0f || arenaHalfExtents.y <= 0f)
@@ -60,10 +62,13 @@ namespace GhostArena
             _spawnPoints = (Transform[])spawnPoints.Clone();
             _arenaHalfExtents = arenaHalfExtents;
             _spawnInterval = spawnInterval;
-            _maximumHealth = maximumHealth;
+            _enemySettings = enemySettings;
+            _visualSettings = visualSettings;
         }
 
         public event Action<EnemyController> Spawned;
+
+        public float SpawnInterval => _spawnInterval;
 
         public void Tick(float deltaTime)
         {
@@ -111,7 +116,16 @@ namespace GhostArena
                 throw new InvalidOperationException("Enemy prefab has no EnemyController component.");
             }
 
-            enemy.Initialize(_arenaHalfExtents, _maximumHealth);
+            GhostVisual visual = enemyObject.GetComponentInChildren<GhostVisual>(true);
+
+            if (visual == null)
+            {
+                UnityEngine.Object.Destroy(enemyObject);
+                throw new InvalidOperationException("Enemy prefab has no GhostVisual component.");
+            }
+
+            enemy.Initialize(_arenaHalfExtents, _enemySettings);
+            visual.Initialize(_visualSettings);
             Spawned?.Invoke(enemy);
         }
     }

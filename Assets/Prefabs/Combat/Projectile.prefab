@@ -96,9 +96,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GhostArena.Projectile
   _body: {fileID: 9039886633005989615}
-  _movementSpeed: 14
-  _damage: 1
-  _lifetime: 2
 --- !u!1 &6340811811970952981
 GameObject:
   m_ObjectHideFlags: 0

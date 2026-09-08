@@ -136,9 +136,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GhostArena.GhostVisual
   _visual: {fileID: 7661825026479987222}
-  _bobHeight: 0.055
-  _bobSpeed: 2.25
-  _squashAmount: 0.022
+  _config: {fileID: 11400000, guid: 4f8252b0b70ed43dab329c143405e830, type: 2}
 --- !u!1 &4619260642116325919
 GameObject:
   m_ObjectHideFlags: 0
@@ -285,7 +283,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GhostArena.PlayerController
   _body: {fileID: 1018506989843540826}
   _health: {fileID: 4399224490655365405}
-  _movementSpeed: 5
 --- !u!114 &2431564193142213947
 MonoBehaviour:
   m_ObjectHideFlags: 0

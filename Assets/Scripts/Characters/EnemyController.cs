@@ -13,11 +13,11 @@ namespace GhostArena
         [SerializeField] private NavMeshAgent _agent;
         [SerializeField] private Rigidbody _body;
         [SerializeField] private ActorHealth _health;
-        [SerializeField] private float _movementSpeed = 2f;
-        [SerializeField] private float _directionInterval = 2f;
 
         private Vector2 _arenaHalfExtents;
         private NavMeshPath _navigationPath;
+        private float _movementSpeed;
+        private float _directionInterval;
         private float _directionTimeRemaining;
         private bool _isGameplayActive;
         private bool _isInitialized;
@@ -31,7 +31,11 @@ namespace GhostArena
 
         public bool IsGameplayActive => _isGameplayActive;
 
-        public void Initialize(Vector2 arenaHalfExtents, int maximumHealth)
+        public float MovementSpeed => _movementSpeed;
+
+        public float DirectionInterval => _directionInterval;
+
+        public void Initialize(Vector2 arenaHalfExtents, EnemySettings settings)
         {
             if (_isInitialized)
             {
@@ -48,6 +52,18 @@ namespace GhostArena
                 throw new ArgumentOutOfRangeException(nameof(arenaHalfExtents));
             }
 
+            if (settings.MaximumHealth <= 0
+                || settings.MovementSpeed <= 0f
+                || float.IsNaN(settings.MovementSpeed)
+                || float.IsInfinity(settings.MovementSpeed)
+                || settings.DirectionInterval <= 0f
+                || float.IsNaN(settings.DirectionInterval)
+                || float.IsInfinity(settings.DirectionInterval)
+                || settings.ContactDamage <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(settings));
+            }
+
             if (_agent.isOnNavMesh == false)
             {
                 throw new InvalidOperationException("Enemy navigation agent is not placed on a NavMesh.");
@@ -56,6 +72,8 @@ namespace GhostArena
             _body.useGravity = false;
             _body.isKinematic = true;
             _body.constraints = RigidbodyConstraints.FreezePositionY | RigidbodyConstraints.FreezeRotation;
+            _movementSpeed = settings.MovementSpeed;
+            _directionInterval = settings.DirectionInterval;
             _agent.speed = _movementSpeed;
             _agent.updatePosition = true;
             _agent.updateRotation = true;
@@ -64,8 +82,16 @@ namespace GhostArena
             _isInitialized = true;
             _arenaHalfExtents = arenaHalfExtents;
             _navigationPath = new NavMeshPath();
-            _health.Initialize(maximumHealth);
+            _health.Initialize(settings.MaximumHealth);
             _health.Died += OnDied;
+            ContactDamage contactDamage = GetComponent<ContactDamage>();
+
+            if (contactDamage == null)
+            {
+                throw new InvalidOperationException("Enemy has no ContactDamage component.");
+            }
+
+            contactDamage.Initialize(settings.ContactDamage);
             ChooseRandomDirection();
         }
 

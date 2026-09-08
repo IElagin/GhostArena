@@ -6,11 +6,8 @@
             <ui:VisualElement class="top-bar" picking-mode="Ignore">
                 <ui:VisualElement name="identity-panel" class="hud-panel identity-panel" picking-mode="Ignore">
                     <ui:Label text="ПРИЗРАЧНАЯ АРЕНА" class="eyebrow" picking-mode="Ignore" />
-                    <ui:VisualElement class="health-row" picking-mode="Ignore">
+                    <ui:VisualElement name="health-row" class="health-row" picking-mode="Ignore">
                         <ui:Label text="СВЕТ" class="health-label" picking-mode="Ignore" />
-                        <ui:VisualElement name="hp-dot-1" class="hp-dot" picking-mode="Ignore" />
-                        <ui:VisualElement name="hp-dot-2" class="hp-dot" picking-mode="Ignore" />
-                        <ui:VisualElement name="hp-dot-3" class="hp-dot" picking-mode="Ignore" />
                     </ui:VisualElement>
                 </ui:VisualElement>
                 <ui:VisualElement name="objective-panel" class="hud-panel objective-panel" picking-mode="Ignore">

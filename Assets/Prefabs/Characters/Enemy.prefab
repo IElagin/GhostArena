@@ -115,8 +115,6 @@ MonoBehaviour:
   _agent: {fileID: 6824165735601507289}
   _body: {fileID: 5903763652377708382}
   _health: {fileID: 804093168896031926}
-  _movementSpeed: 2
-  _directionInterval: 2
 --- !u!114 &6175272355065321329
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -130,7 +128,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GhostArena.ContactDamage
   _enemy: {fileID: 7143540609635518237}
-  _damage: 1
 --- !u!195 &6824165735601507289
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -199,9 +196,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GhostArena.GhostVisual
   _visual: {fileID: 4445645146411133250}
-  _bobHeight: 0.065
-  _bobSpeed: 2.55
-  _squashAmount: 0.022
+  _config: {fileID: 11400000, guid: acddafe6931db4714900b1440f806a55, type: 2}
 --- !u!1001 &8353795879245642490
 PrefabInstance:
   m_ObjectHideFlags: 0
