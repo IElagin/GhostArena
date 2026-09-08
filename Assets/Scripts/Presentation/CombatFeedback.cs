@@ -469,7 +469,7 @@ namespace GhostArena
             AudioListener.pause = false;
             StopAllCoroutines();
             RestoreAllFlashes();
-            ClearAudio();
+            _resultAudioSource.Stop();
             AudioClip resultClip = result == GameResult.Victory ? _victoryClip : _defeatClip;
             _resultAudioSource.PlayOneShot(resultClip, ResultVolume);
         }

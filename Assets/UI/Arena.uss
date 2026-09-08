@@ -164,7 +164,7 @@
 
 .pause-button {
     position: absolute;
-    top: 91px;
+    top: 124px;
     right: 28px;
 }
 
