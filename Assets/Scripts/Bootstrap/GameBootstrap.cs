@@ -7,6 +7,7 @@ namespace GhostArena
     public sealed class GameBootstrap : MonoBehaviour
     {
         private const string PressOnlyInteraction = "Press(behavior=0)";
+        private const int TargetFrameRate = 60;
         private const int PlayerMaximumHealth = 3;
         private const int EnemyMaximumHealth = 2;
         private const float EnemySpawnInterval = 3f;
@@ -82,6 +83,8 @@ namespace GhostArena
 
         private void Awake()
         {
+            QualitySettings.vSyncCount = 0;
+            Application.targetFrameRate = TargetFrameRate;
             ValidateConfiguration();
             CreateGlobalInputActions();
         }
