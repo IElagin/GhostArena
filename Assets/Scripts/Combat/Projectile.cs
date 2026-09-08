@@ -42,13 +42,7 @@ namespace GhostArena
                 throw new ArgumentOutOfRangeException(nameof(direction));
             }
 
-            if (settings.MovementSpeed <= 0f
-                || float.IsNaN(settings.MovementSpeed)
-                || float.IsInfinity(settings.MovementSpeed)
-                || settings.Damage <= 0
-                || settings.Lifetime <= 0f
-                || float.IsNaN(settings.Lifetime)
-                || float.IsInfinity(settings.Lifetime))
+            if (settings.IsValid == false)
             {
                 throw new ArgumentOutOfRangeException(nameof(settings));
             }

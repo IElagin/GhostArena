@@ -29,6 +29,8 @@ namespace GhostArena
         private GameplaySettings _settings;
         private bool _isTearingDown;
 
+        public event Action SessionStarting;
+
         public event Action SessionChanged;
 
         public GameSession Session { get; private set; }
@@ -153,6 +155,7 @@ namespace GhostArena
         private void StartSession()
         {
             SessionConfiguration configuration = CaptureSessionConfiguration();
+            SessionStarting?.Invoke();
             TearDownSession();
             Time.timeScale = 1f;
             _settings = configuration.Gameplay;

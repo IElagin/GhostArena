@@ -31,10 +31,13 @@ namespace GhostArena
             new Dictionary<GameObject, FlashState>();
         private readonly List<ParticleSystem> _activeEffects = new List<ParticleSystem>();
         private GameSession _session;
+        private GameSession _settingsSession;
         private ActorHealth _playerHealth;
         private EntityRegistry<EnemyController> _enemies;
         private PlayerShooter _shooter;
         private CombatFeedbackSettings _settings;
+        private CombatFeedbackSettings _preparedSettings;
+        private bool _hasPreparedSettings;
         private int _nextSfxVoice;
 
         public GameSession BoundSession => _session;
@@ -45,18 +48,22 @@ namespace GhostArena
 
         private void OnEnable()
         {
-            ValidateConfiguration();
-            _bootstrap.SessionChanged += OnSessionChanged;
+            ValidateReferences();
             RebindSession();
+            _bootstrap.SessionStarting += OnSessionStarting;
+            _bootstrap.SessionChanged += OnSessionChanged;
         }
 
         private void OnDisable()
         {
             if (_bootstrap != null)
             {
+                _bootstrap.SessionStarting -= OnSessionStarting;
                 _bootstrap.SessionChanged -= OnSessionChanged;
             }
 
+            _preparedSettings = default;
+            _hasPreparedSettings = false;
             UnbindSession();
             ClearTransientFeedback();
             AudioListener.pause = false;
@@ -90,7 +97,7 @@ namespace GhostArena
             }
         }
 
-        private void ValidateConfiguration()
+        private void ValidateReferences()
         {
             if (_config == null)
             {
@@ -114,18 +121,34 @@ namespace GhostArena
                     throw new InvalidOperationException("Combat feedback SFX voices cannot contain null.");
                 }
             }
-
-            _config.Validate();
         }
 
         private void RebindSession()
         {
-            CombatFeedbackSettings settings = _config.CreateSettings();
+            GameSession session = _bootstrap.Session;
+            CombatFeedbackSettings settings;
+
+            if (_hasPreparedSettings)
+            {
+                settings = _preparedSettings;
+                _preparedSettings = default;
+                _hasPreparedSettings = false;
+            }
+            else if (session != null && ReferenceEquals(_settingsSession, session))
+            {
+                settings = _settings;
+            }
+            else
+            {
+                settings = _config.CreateSettings();
+            }
+
             UnbindSession();
             ClearTransientFeedback();
             _settings = settings;
+            _settingsSession = session;
             ApplySourceGains();
-            _session = _bootstrap.Session;
+            _session = session;
 
             if (_session == null || _bootstrap.Player == null || _bootstrap.Enemies == null
                 || _bootstrap.Shooter == null)
@@ -453,6 +476,13 @@ namespace GhostArena
         private void OnSessionChanged()
         {
             RebindSession();
+        }
+
+        private void OnSessionStarting()
+        {
+            CombatFeedbackSettings settings = _config.CreateSettings();
+            _preparedSettings = settings;
+            _hasPreparedSettings = true;
         }
 
         private void OnSessionStateChanged()

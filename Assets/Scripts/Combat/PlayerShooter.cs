@@ -38,13 +38,7 @@ namespace GhostArena
                 ? runtimeRoot
                 : throw new ArgumentNullException(nameof(runtimeRoot));
 
-            if (projectileSettings.MovementSpeed <= 0f
-                || float.IsNaN(projectileSettings.MovementSpeed)
-                || float.IsInfinity(projectileSettings.MovementSpeed)
-                || projectileSettings.Damage <= 0
-                || projectileSettings.Lifetime <= 0f
-                || float.IsNaN(projectileSettings.Lifetime)
-                || float.IsInfinity(projectileSettings.Lifetime))
+            if (projectileSettings.IsValid == false)
             {
                 throw new ArgumentOutOfRangeException(nameof(projectileSettings));
             }

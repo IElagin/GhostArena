@@ -226,5 +226,13 @@ namespace GhostArena
         public int Damage { get; }
 
         public float Lifetime { get; }
+
+        internal bool IsValid => MovementSpeed > 0f
+            && float.IsNaN(MovementSpeed) == false
+            && float.IsInfinity(MovementSpeed) == false
+            && Damage > 0
+            && Lifetime > 0f
+            && float.IsNaN(Lifetime) == false
+            && float.IsInfinity(Lifetime) == false;
     }
 }
