@@ -1,19 +1,23 @@
 using System;
 using UnityEngine;
+using UnityEngine.AI;
 
 namespace GhostArena
 {
     public sealed class EnemyController : MonoBehaviour
     {
+        private const int DestinationSelectionAttempts = 8;
+        private const float DestinationSampleDistance = 1f;
         private const float DirectionThreshold = 0.0001f;
-        private const string EnvironmentLayerName = "Environment";
 
+        [SerializeField] private NavMeshAgent _agent;
         [SerializeField] private Rigidbody _body;
         [SerializeField] private ActorHealth _health;
         [SerializeField] private float _movementSpeed = 2f;
         [SerializeField] private float _directionInterval = 2f;
 
         private Vector2 _arenaHalfExtents;
+        private NavMeshPath _navigationPath;
         private float _directionTimeRemaining;
         private bool _isGameplayActive;
         private bool _isInitialized;
@@ -34,7 +38,7 @@ namespace GhostArena
                 throw new InvalidOperationException("Enemy controller is already initialized.");
             }
 
-            if (_body == null || _health == null)
+            if (_agent == null || _body == null || _health == null)
             {
                 throw new InvalidOperationException("Enemy controller references are not configured.");
             }
@@ -44,10 +48,22 @@ namespace GhostArena
                 throw new ArgumentOutOfRangeException(nameof(arenaHalfExtents));
             }
 
+            if (_agent.isOnNavMesh == false)
+            {
+                throw new InvalidOperationException("Enemy navigation agent is not placed on a NavMesh.");
+            }
+
+            _body.useGravity = false;
+            _body.isKinematic = true;
+            _body.constraints = RigidbodyConstraints.FreezePositionY | RigidbodyConstraints.FreezeRotation;
+            _agent.speed = _movementSpeed;
+            _agent.updatePosition = true;
+            _agent.updateRotation = true;
+            _agent.isStopped = true;
+
             _isInitialized = true;
             _arenaHalfExtents = arenaHalfExtents;
-            _body.useGravity = false;
-            _body.constraints = RigidbodyConstraints.FreezePositionY | RigidbodyConstraints.FreezeRotation;
+            _navigationPath = new NavMeshPath();
             _health.Initialize(maximumHealth);
             _health.Died += OnDied;
             ChooseRandomDirection();
@@ -57,44 +73,24 @@ namespace GhostArena
         {
             _isGameplayActive = isActive && _health.IsAlive;
 
-            if (_isGameplayActive == false)
+            if (_agent.enabled && _agent.isOnNavMesh)
             {
-                _body.linearVelocity = Vector3.zero;
+                _agent.isStopped = _isGameplayActive == false;
             }
         }
 
-        private void FixedUpdate()
+        private void Update()
         {
             if (_isGameplayActive == false || _health.IsAlive == false)
             {
                 return;
             }
 
-            _directionTimeRemaining -= Time.fixedDeltaTime;
+            _directionTimeRemaining -= Time.deltaTime;
 
             if (_directionTimeRemaining <= 0f)
             {
                 ChooseRandomDirection();
-            }
-
-            Vector3 nextPosition = _body.position + Direction * (_movementSpeed * Time.fixedDeltaTime);
-
-            if (IsOutsideArena(nextPosition))
-            {
-                ChooseInwardDirection();
-                nextPosition = _body.position + Direction * (_movementSpeed * Time.fixedDeltaTime);
-            }
-
-            _body.MovePosition(nextPosition);
-        }
-
-        private void OnCollisionEnter(Collision collision)
-        {
-            int environmentLayer = LayerMask.NameToLayer(EnvironmentLayerName);
-
-            if (_isGameplayActive && collision.gameObject.layer == environmentLayer)
-            {
-                ChooseInwardDirection();
             }
         }
 
@@ -106,44 +102,62 @@ namespace GhostArena
             }
         }
 
-        private void ChooseRandomDirection()
+        private void OnDisable()
         {
-            Vector2 randomDirection = UnityEngine.Random.insideUnitCircle;
+            _isGameplayActive = false;
 
-            if (randomDirection.sqrMagnitude <= DirectionThreshold)
+            if (_agent != null && _agent.enabled && _agent.isOnNavMesh)
             {
-                randomDirection = Vector2.up;
+                _agent.isStopped = true;
             }
-
-            SetDirection(new Vector3(randomDirection.x, 0f, randomDirection.y));
         }
 
-        private void ChooseInwardDirection()
+        private void ChooseRandomDirection()
         {
-            Vector3 inwardDirection = new Vector3(-_body.position.x, 0f, -_body.position.z).normalized;
-            Vector2 randomOffset = UnityEngine.Random.insideUnitCircle * 0.35f;
-            Vector3 direction = inwardDirection + new Vector3(randomOffset.x, 0f, randomOffset.y);
+            float minimumDestinationDistance = _movementSpeed * _directionInterval;
+            float minimumDestinationDistanceSquared = Mathf.Max(
+                minimumDestinationDistance * minimumDestinationDistance,
+                DirectionThreshold);
 
-            if (direction.sqrMagnitude <= DirectionThreshold)
+            for (int attempt = 0; attempt < DestinationSelectionAttempts; attempt++)
             {
-                direction = Vector3.forward;
+                Vector3 candidate = new Vector3(
+                    UnityEngine.Random.Range(-_arenaHalfExtents.x, _arenaHalfExtents.x),
+                    transform.position.y,
+                    UnityEngine.Random.Range(-_arenaHalfExtents.y, _arenaHalfExtents.y));
+
+                if (NavMesh.SamplePosition(
+                        candidate,
+                        out NavMeshHit hit,
+                        DestinationSampleDistance,
+                        _agent.areaMask) == false)
+                {
+                    continue;
+                }
+
+                Vector3 direction = hit.position - transform.position;
+                direction.y = 0f;
+
+                if (direction.sqrMagnitude < minimumDestinationDistanceSquared
+                    || _agent.CalculatePath(hit.position, _navigationPath) == false
+                    || _navigationPath.status != NavMeshPathStatus.PathComplete
+                    || _agent.SetDestination(hit.position) == false)
+                {
+                    continue;
+                }
+
+                SetDirection(direction);
+                return;
             }
 
-            SetDirection(direction);
+            _directionTimeRemaining = _directionInterval;
         }
 
         private void SetDirection(Vector3 direction)
         {
             Direction = direction.normalized;
             _directionTimeRemaining = _directionInterval;
-            transform.forward = Direction;
             DirectionChanged?.Invoke(this);
-        }
-
-        private bool IsOutsideArena(Vector3 position)
-        {
-            return Mathf.Abs(position.x) > _arenaHalfExtents.x
-                || Mathf.Abs(position.z) > _arenaHalfExtents.y;
         }
 
         private void OnDied()
