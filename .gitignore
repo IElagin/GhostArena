@@ -44,6 +44,10 @@ crashlytics-build.properties
 /README*
 /Readme*
 
+# Temporary local-only content validation; excluded from curator submission.
+/Assets/_LocalPilot/
+/Assets/_LocalPilot.meta
+
 # Packaged outputs
 *.app/
 *.apk
