@@ -213,6 +213,16 @@ namespace GhostArena
             _isTearingDown = true;
             Time.timeScale = 1f;
 
+            if (Player != null)
+            {
+                Player.SetGameplayActive(false);
+            }
+
+            if (Shooter != null)
+            {
+                Shooter.SetGameplayActive(false);
+            }
+
             if (_runtimeRoot != null)
             {
                 _runtimeRoot.gameObject.SetActive(false);

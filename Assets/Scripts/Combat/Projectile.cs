@@ -76,8 +76,14 @@ namespace GhostArena
 
             EnemyController enemy = collision.collider.GetComponentInParent<EnemyController>();
 
-            if (enemy != null && enemy.Health.IsAlive)
+            if (enemy != null)
             {
+                if (enemy.Health.IsAlive == false)
+                {
+                    IgnoreDeadEnemy(collision.collider);
+                    return;
+                }
+
                 _isConsumed = true;
                 _body.linearVelocity = Vector3.zero;
                 enemy.Health.TakeDamage(_damage);
@@ -87,6 +93,18 @@ namespace GhostArena
             }
 
             Consume();
+        }
+
+        private void IgnoreDeadEnemy(Collider enemyCollider)
+        {
+            Collider projectileCollider = GetComponent<Collider>();
+
+            if (projectileCollider != null)
+            {
+                Physics.IgnoreCollision(projectileCollider, enemyCollider, true);
+            }
+
+            _body.linearVelocity = transform.forward * _movementSpeed;
         }
 
         private void Consume()
