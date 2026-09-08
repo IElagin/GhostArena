@@ -1,0 +1,580 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace GhostArena
+{
+    public sealed class CombatFeedback : MonoBehaviour
+    {
+        private const float ShotVolume = 0.8f;
+        private const float EnemyHitVolume = 0.9f;
+        private const float EnemyDeathVolume = 0.9f;
+        private const float PlayerHurtVolume = 0.95f;
+        private const float ResultVolume = 0.95f;
+        private const float SpawnVolume = 0.75f;
+        private const float FlashDuration = 0.09f;
+        private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+        private static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
+        private static readonly Color EnemyFlashColor = new Color(1f, 0.86f, 0.58f, 1f);
+        private static readonly Color EnemyFlashEmission = new Color(1.2f, 0.55f, 0.12f, 1f);
+        private static readonly Color PlayerFlashColor = new Color(1f, 0.54f, 0.49f, 1f);
+        private static readonly Color PlayerFlashEmission = new Color(1.1f, 0.18f, 0.12f, 1f);
+
+        [Header("Session")]
+        [SerializeField] private GameBootstrap _bootstrap;
+        [SerializeField] private Transform _effectRoot;
+
+        [Header("Audio")]
+        [SerializeField] private AudioSource _resultAudioSource;
+        [SerializeField] private AudioSource[] _sfxVoices;
+        [SerializeField] private AudioClip _shotClip;
+        [SerializeField] private AudioClip _enemyHitClip;
+        [SerializeField] private AudioClip _enemyDeathClip;
+        [SerializeField] private AudioClip _playerHurtClip;
+        [SerializeField] private AudioClip _spawnClip;
+        [SerializeField] private AudioClip _victoryClip;
+        [SerializeField] private AudioClip _defeatClip;
+
+        [Header("Effects")]
+        [SerializeField] private ParticleSystem _spawnEffectPrefab;
+        [SerializeField] private ParticleSystem _hitEffectPrefab;
+        [SerializeField] private ParticleSystem _deathEffectPrefab;
+
+        private readonly Dictionary<EnemyController, Action> _enemyHealthHandlers =
+            new Dictionary<EnemyController, Action>();
+        private readonly HashSet<Projectile> _trackedProjectiles = new HashSet<Projectile>();
+        private readonly Dictionary<GameObject, FlashState> _flashes =
+            new Dictionary<GameObject, FlashState>();
+        private readonly List<ParticleSystem> _activeEffects = new List<ParticleSystem>();
+        private GameSession _session;
+        private ActorHealth _playerHealth;
+        private EntityRegistry<EnemyController> _enemies;
+        private PlayerShooter _shooter;
+        private int _nextSfxVoice;
+
+        public GameSession BoundSession => _session;
+
+        private void OnEnable()
+        {
+            ValidateConfiguration();
+            _bootstrap.SessionChanged += OnSessionChanged;
+            RebindSession();
+        }
+
+        private void OnDisable()
+        {
+            if (_bootstrap != null)
+            {
+                _bootstrap.SessionChanged -= OnSessionChanged;
+            }
+
+            UnbindSession();
+            ClearTransientFeedback();
+            AudioListener.pause = false;
+        }
+
+        private void Update()
+        {
+            if (_session == null || _session.State != GameState.Finished)
+            {
+                return;
+            }
+
+            for (int index = _activeEffects.Count - 1; index >= 0; index--)
+            {
+                ParticleSystem effect = _activeEffects[index];
+
+                if (effect == null)
+                {
+                    _activeEffects.RemoveAt(index);
+                    continue;
+                }
+
+                effect.Simulate(Time.unscaledDeltaTime, true, false, false);
+
+                if (effect.IsAlive(true) == false)
+                {
+                    effect.gameObject.SetActive(false);
+                    Destroy(effect.gameObject);
+                    _activeEffects.RemoveAt(index);
+                }
+            }
+        }
+
+        private void ValidateConfiguration()
+        {
+            if (_bootstrap == null || _effectRoot == null || _resultAudioSource == null)
+            {
+                throw new InvalidOperationException("Combat feedback scene references are not configured.");
+            }
+
+            if (_sfxVoices == null || _sfxVoices.Length == 0)
+            {
+                throw new InvalidOperationException("Combat feedback needs at least one SFX voice.");
+            }
+
+            foreach (AudioSource sfxVoice in _sfxVoices)
+            {
+                if (sfxVoice == null)
+                {
+                    throw new InvalidOperationException("Combat feedback SFX voices cannot contain null.");
+                }
+            }
+
+            if (_shotClip == null || _enemyHitClip == null || _enemyDeathClip == null
+                || _playerHurtClip == null || _spawnClip == null
+                || _victoryClip == null || _defeatClip == null)
+            {
+                throw new InvalidOperationException("Combat feedback audio clips are not configured.");
+            }
+
+            if (_spawnEffectPrefab == null || _hitEffectPrefab == null || _deathEffectPrefab == null)
+            {
+                throw new InvalidOperationException("Combat feedback effect prefabs are not configured.");
+            }
+        }
+
+        private void RebindSession()
+        {
+            UnbindSession();
+            ClearTransientFeedback();
+            _session = _bootstrap.Session;
+
+            if (_session == null || _bootstrap.Player == null || _bootstrap.Enemies == null
+                || _bootstrap.Shooter == null)
+            {
+                return;
+            }
+
+            _playerHealth = _bootstrap.Player.Health;
+            _enemies = _bootstrap.Enemies;
+            _shooter = _bootstrap.Shooter;
+            _session.StateChanged += OnSessionStateChanged;
+            _session.Ended += OnSessionEnded;
+            _playerHealth.Changed += OnPlayerHealthChanged;
+            _playerHealth.Died += OnPlayerDied;
+            _enemies.Added += OnEnemyAdded;
+            _enemies.Removed += OnEnemyRemoved;
+            _shooter.Shot += OnShot;
+
+            foreach (EnemyController enemy in _enemies.Items)
+            {
+                SubscribeEnemy(enemy);
+            }
+
+            AudioListener.pause = _session.State == GameState.Paused;
+        }
+
+        private void UnbindSession()
+        {
+            if (_session != null)
+            {
+                _session.StateChanged -= OnSessionStateChanged;
+                _session.Ended -= OnSessionEnded;
+            }
+
+            if (_playerHealth != null)
+            {
+                _playerHealth.Changed -= OnPlayerHealthChanged;
+                _playerHealth.Died -= OnPlayerDied;
+            }
+
+            if (_enemies != null)
+            {
+                _enemies.Added -= OnEnemyAdded;
+                _enemies.Removed -= OnEnemyRemoved;
+            }
+
+            if (_shooter != null)
+            {
+                _shooter.Shot -= OnShot;
+            }
+
+            EnemyController[] subscribedEnemies = new EnemyController[_enemyHealthHandlers.Count];
+            _enemyHealthHandlers.Keys.CopyTo(subscribedEnemies, 0);
+
+            foreach (EnemyController enemy in subscribedEnemies)
+            {
+                UnsubscribeEnemy(enemy);
+            }
+
+            foreach (Projectile projectile in _trackedProjectiles)
+            {
+                if (projectile != null)
+                {
+                    projectile.Hit -= OnProjectileHit;
+                }
+            }
+
+            _trackedProjectiles.Clear();
+            _session = null;
+            _playerHealth = null;
+            _enemies = null;
+            _shooter = null;
+        }
+
+        private void SubscribeEnemy(EnemyController enemy)
+        {
+            if (enemy == null || _enemyHealthHandlers.ContainsKey(enemy))
+            {
+                return;
+            }
+
+            Action healthHandler = () => OnEnemyHealthChanged(enemy);
+            _enemyHealthHandlers.Add(enemy, healthHandler);
+            enemy.Health.Changed += healthHandler;
+            enemy.Died += OnEnemyDied;
+        }
+
+        private void UnsubscribeEnemy(EnemyController enemy)
+        {
+            if (ReferenceEquals(enemy, null)
+                || _enemyHealthHandlers.TryGetValue(enemy, out Action healthHandler) == false)
+            {
+                return;
+            }
+
+            if (enemy != null && enemy.Health != null)
+            {
+                enemy.Health.Changed -= healthHandler;
+                enemy.Died -= OnEnemyDied;
+            }
+
+            _enemyHealthHandlers.Remove(enemy);
+        }
+
+        private void ClearTransientFeedback()
+        {
+            StopAllCoroutines();
+            RestoreAllFlashes();
+
+            foreach (ParticleSystem effect in _activeEffects)
+            {
+                if (effect != null)
+                {
+                    effect.gameObject.SetActive(false);
+                    Destroy(effect.gameObject);
+                }
+            }
+
+            _activeEffects.Clear();
+            ClearAudio();
+        }
+
+        private void ClearAudio()
+        {
+            _resultAudioSource.Stop();
+
+            foreach (AudioSource sfxVoice in _sfxVoices)
+            {
+                sfxVoice.Stop();
+            }
+
+            _nextSfxVoice = 0;
+        }
+
+        private void RestoreAllFlashes()
+        {
+            foreach (FlashState flashState in _flashes.Values)
+            {
+                RestoreFlash(flashState);
+            }
+
+            _flashes.Clear();
+        }
+
+        private void Flash(GameObject actor, Color flashColor, Color flashEmission)
+        {
+            if (actor == null)
+            {
+                return;
+            }
+
+            if (_flashes.TryGetValue(actor, out FlashState flashState))
+            {
+                StopCoroutine(flashState.Coroutine);
+            }
+            else
+            {
+                flashState = CaptureFlashState(actor);
+
+                if (flashState.Slots.Count == 0)
+                {
+                    return;
+                }
+
+                _flashes.Add(actor, flashState);
+            }
+
+            ApplyFlash(flashState, flashColor, flashEmission);
+            flashState.Coroutine = StartCoroutine(RestoreFlashAfterDelay(actor, flashState));
+        }
+
+        private static FlashState CaptureFlashState(GameObject actor)
+        {
+            FlashState flashState = new FlashState();
+
+            foreach (Renderer renderer in actor.GetComponentsInChildren<Renderer>(true))
+            {
+                Material[] materials = renderer.sharedMaterials;
+
+                for (int materialIndex = 0; materialIndex < materials.Length; materialIndex++)
+                {
+                    Material material = materials[materialIndex];
+
+                    if (material == null)
+                    {
+                        continue;
+                    }
+
+                    bool hasBaseColor = material.HasProperty(BaseColorId);
+                    bool hasEmission = material.HasProperty(EmissionColorId);
+
+                    if (hasBaseColor == false && hasEmission == false)
+                    {
+                        continue;
+                    }
+
+                    MaterialPropertyBlock block = new MaterialPropertyBlock();
+                    renderer.GetPropertyBlock(block, materialIndex);
+                    Color baseColor = hasBaseColor
+                        ? block.HasColor(BaseColorId)
+                            ? block.GetColor(BaseColorId)
+                            : material.GetColor(BaseColorId)
+                        : Color.clear;
+                    Color emissionColor = hasEmission
+                        ? block.HasColor(EmissionColorId)
+                            ? block.GetColor(EmissionColorId)
+                            : material.GetColor(EmissionColorId)
+                        : Color.clear;
+                    flashState.Slots.Add(new MaterialSlotState(
+                        renderer,
+                        materialIndex,
+                        block,
+                        hasBaseColor,
+                        baseColor,
+                        hasEmission,
+                        emissionColor));
+                }
+            }
+
+            return flashState;
+        }
+
+        private static void ApplyFlash(
+            FlashState flashState,
+            Color flashColor,
+            Color flashEmission)
+        {
+            foreach (MaterialSlotState slot in flashState.Slots)
+            {
+                if (slot.Renderer == null)
+                {
+                    continue;
+                }
+
+                if (slot.HasBaseColor)
+                {
+                    slot.Block.SetColor(BaseColorId, flashColor);
+                }
+
+                if (slot.HasEmission)
+                {
+                    slot.Block.SetColor(EmissionColorId, flashEmission);
+                }
+
+                slot.Renderer.SetPropertyBlock(slot.Block, slot.MaterialIndex);
+            }
+        }
+
+        private static void RestoreFlash(FlashState flashState)
+        {
+            foreach (MaterialSlotState slot in flashState.Slots)
+            {
+                if (slot.Renderer == null)
+                {
+                    continue;
+                }
+
+                if (slot.HasBaseColor)
+                {
+                    slot.Block.SetColor(BaseColorId, slot.BaseColor);
+                }
+
+                if (slot.HasEmission)
+                {
+                    slot.Block.SetColor(EmissionColorId, slot.EmissionColor);
+                }
+
+                slot.Renderer.SetPropertyBlock(slot.Block, slot.MaterialIndex);
+            }
+        }
+
+        private IEnumerator RestoreFlashAfterDelay(GameObject actor, FlashState flashState)
+        {
+            float elapsed = 0f;
+
+            while (elapsed < FlashDuration)
+            {
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+
+            RestoreFlash(flashState);
+            _flashes.Remove(actor);
+        }
+
+        private void PlayEffect(ParticleSystem effectPrefab, Vector3 position)
+        {
+            for (int index = _activeEffects.Count - 1; index >= 0; index--)
+            {
+                if (_activeEffects[index] == null)
+                {
+                    _activeEffects.RemoveAt(index);
+                }
+            }
+
+            ParticleSystem effect = Instantiate(
+                effectPrefab,
+                position,
+                Quaternion.identity,
+                _effectRoot);
+            _activeEffects.Add(effect);
+            effect.Play(true);
+            float lifetime = effect.main.duration + effect.main.startLifetime.constantMax;
+            Destroy(effect.gameObject, lifetime);
+        }
+
+        private void PlayCue(AudioClip clip, float volume)
+        {
+            AudioSource sfxVoice = _sfxVoices[_nextSfxVoice];
+            _nextSfxVoice = (_nextSfxVoice + 1) % _sfxVoices.Length;
+            sfxVoice.Stop();
+            sfxVoice.PlayOneShot(clip, volume);
+        }
+
+        private void OnSessionChanged()
+        {
+            RebindSession();
+        }
+
+        private void OnSessionStateChanged()
+        {
+            AudioListener.pause = _session != null && _session.State == GameState.Paused;
+        }
+
+        private void OnSessionEnded(GameResult result)
+        {
+            AudioListener.pause = false;
+            StopAllCoroutines();
+            RestoreAllFlashes();
+            ClearAudio();
+            AudioClip resultClip = result == GameResult.Victory ? _victoryClip : _defeatClip;
+            _resultAudioSource.PlayOneShot(resultClip, ResultVolume);
+        }
+
+        private void OnPlayerHealthChanged()
+        {
+            PlayCue(_playerHurtClip, PlayerHurtVolume);
+            Flash(_bootstrap.Player.gameObject, PlayerFlashColor, PlayerFlashEmission);
+        }
+
+        private void OnPlayerDied()
+        {
+            PlayEffect(_deathEffectPrefab, _bootstrap.Player.transform.position + Vector3.up * 0.4f);
+        }
+
+        private void OnEnemyAdded(EnemyController enemy)
+        {
+            SubscribeEnemy(enemy);
+            PlayEffect(_spawnEffectPrefab, enemy.transform.position + Vector3.up * 0.35f);
+            PlayCue(_spawnClip, SpawnVolume);
+        }
+
+        private void OnEnemyRemoved(EnemyController enemy)
+        {
+            UnsubscribeEnemy(enemy);
+        }
+
+        private void OnEnemyHealthChanged(EnemyController enemy)
+        {
+            if (enemy == null || enemy.Health.IsAlive == false)
+            {
+                return;
+            }
+
+            PlayCue(_enemyHitClip, EnemyHitVolume);
+            Flash(enemy.gameObject, EnemyFlashColor, EnemyFlashEmission);
+        }
+
+        private void OnEnemyDied(EnemyController enemy)
+        {
+            PlayEffect(_deathEffectPrefab, enemy.transform.position + Vector3.up * 0.35f);
+            PlayCue(_enemyDeathClip, EnemyDeathVolume);
+        }
+
+        private void OnShot(Projectile projectile)
+        {
+            _trackedProjectiles.RemoveWhere(trackedProjectile => trackedProjectile == null);
+            PlayCue(_shotClip, ShotVolume);
+
+            if (projectile != null && _trackedProjectiles.Add(projectile))
+            {
+                projectile.Hit += OnProjectileHit;
+            }
+        }
+
+        private void OnProjectileHit(Projectile projectile, EnemyController enemy)
+        {
+            projectile.Hit -= OnProjectileHit;
+            _trackedProjectiles.Remove(projectile);
+
+            if (enemy != null)
+            {
+                PlayEffect(_hitEffectPrefab, enemy.transform.position + Vector3.up * 0.45f);
+            }
+        }
+
+        private sealed class FlashState
+        {
+            public readonly List<MaterialSlotState> Slots = new List<MaterialSlotState>();
+            public Coroutine Coroutine;
+        }
+
+        private sealed class MaterialSlotState
+        {
+            public MaterialSlotState(
+                Renderer renderer,
+                int materialIndex,
+                MaterialPropertyBlock block,
+                bool hasBaseColor,
+                Color baseColor,
+                bool hasEmission,
+                Color emissionColor)
+            {
+                Renderer = renderer;
+                MaterialIndex = materialIndex;
+                Block = block;
+                HasBaseColor = hasBaseColor;
+                BaseColor = baseColor;
+                HasEmission = hasEmission;
+                EmissionColor = emissionColor;
+            }
+
+            public Renderer Renderer { get; }
+
+            public int MaterialIndex { get; }
+
+            public MaterialPropertyBlock Block { get; }
+
+            public bool HasBaseColor { get; }
+
+            public Color BaseColor { get; }
+
+            public bool HasEmission { get; }
+
+            public Color EmissionColor { get; }
+        }
+    }
+}

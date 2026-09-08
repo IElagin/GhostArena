@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <Style src="Arena.uss" />
+    <ui:VisualElement name="arena-root" class="arena-root" picking-mode="Ignore">
+        <ui:VisualElement name="hud" class="hud" picking-mode="Ignore">
+            <ui:VisualElement class="top-bar" picking-mode="Ignore">
+                <ui:VisualElement name="identity-panel" class="hud-panel identity-panel" picking-mode="Ignore">
+                    <ui:Label text="ПРИЗРАЧНАЯ АРЕНА" class="eyebrow" picking-mode="Ignore" />
+                    <ui:VisualElement class="health-row" picking-mode="Ignore">
+                        <ui:Label text="СВЕТ" class="health-label" picking-mode="Ignore" />
+                        <ui:VisualElement name="hp-dot-1" class="hp-dot" picking-mode="Ignore" />
+                        <ui:VisualElement name="hp-dot-2" class="hp-dot" picking-mode="Ignore" />
+                        <ui:VisualElement name="hp-dot-3" class="hp-dot" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement name="objective-panel" class="hud-panel objective-panel" picking-mode="Ignore">
+                    <ui:Label text="ЦЕЛЬ" class="eyebrow centered" picking-mode="Ignore" />
+                    <ui:Label name="objective-label" text="ПРОДЕРЖИТЕСЬ 60 СЕК" class="objective-label" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:VisualElement name="stats-panel" class="hud-panel stats-panel" picking-mode="Ignore">
+                    <ui:VisualElement class="stats-row" picking-mode="Ignore">
+                        <ui:Label name="time-label" text="ВРЕМЯ  00:00" class="stat-label" picking-mode="Ignore" />
+                        <ui:Label name="kills-label" text="ДУХИ  0" class="stat-label stat-accent" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                    <ui:Label name="spawns-label" text="ПОЯВИЛОСЬ  0    ПРЕДЕЛ  25" class="spawn-label" picking-mode="Ignore" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:Button name="pause-button" text="ПАУЗА" class="utility-button pause-button" />
+            <ui:Label name="control-hints" text="WASD / СТРЕЛКИ  •  ДВИЖЕНИЕ     SPACE  •  ВЫСТРЕЛ     ESC  •  ПАУЗА" class="control-hints" picking-mode="Ignore" />
+        </ui:VisualElement>
+
+        <ui:VisualElement name="fallen-card" class="fallen-card" picking-mode="Position">
+            <ui:Label text="ГЕРОЙ ПОГАС" class="fallen-title" picking-mode="Ignore" />
+            <ui:Label name="fallen-reason-label" text="Матч продолжается до выбранного условия." class="fallen-reason" picking-mode="Ignore" />
+            <ui:Button name="fallen-restart-button" text="ЗАНОВО" class="button button--small" />
+        </ui:VisualElement>
+
+        <ui:VisualElement name="pause-overlay" class="blocking-overlay" picking-mode="Position">
+            <ui:VisualElement class="modal-card pause-card" picking-mode="Position">
+                <ui:Label text="ПАУЗА" class="modal-title" picking-mode="Ignore" />
+                <ui:Label text="Двор застыл. Можно перевести дух." class="modal-copy" picking-mode="Ignore" />
+                <ui:Label name="pause-stats-label" text="Время 00:00   •   Духов побеждено 0" class="modal-stats" picking-mode="Ignore" />
+                <ui:Button name="resume-button" text="ПРОДОЛЖИТЬ" class="button button--primary" />
+                <ui:Button name="pause-restart-button" text="ЗАНОВО" class="button button--secondary" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="result-overlay" class="blocking-overlay" picking-mode="Position">
+            <ui:VisualElement class="modal-card result-card" picking-mode="Position">
+                <ui:Label text="МАТЧ ЗАВЕРШЁН" class="eyebrow centered" picking-mode="Ignore" />
+                <ui:Label name="result-heading-label" text="ПОБЕДА" class="result-heading" picking-mode="Ignore" />
+                <ui:VisualElement class="divider" picking-mode="Ignore" />
+                <ui:Label name="result-reason-label" text="Вы продержались 60 секунд." class="result-reason" picking-mode="Ignore" />
+                <ui:Label name="result-stats-label" text="Время 01:00   •   Духов побеждено 0" class="modal-stats" picking-mode="Ignore" />
+                <ui:Button name="result-restart-button" text="ЕЩЁ РАЗ" class="button button--primary button--large" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
