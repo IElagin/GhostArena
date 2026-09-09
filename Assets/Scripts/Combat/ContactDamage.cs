@@ -5,25 +5,23 @@ namespace GhostArena
 {
     public sealed class ContactDamage : MonoBehaviour
     {
-        [SerializeField] private EnemyController _enemy;
-
-        private readonly Dictionary<PlayerController, int> _playerContacts =
-            new Dictionary<PlayerController, int>();
+        private readonly Dictionary<Character, int> _targetContacts =
+            new Dictionary<Character, int>();
+        private Character _owner;
+        private ITargetDamagePolicy _targetPolicy;
         private int _damage;
         private bool _isInitialized;
 
         public int Damage => _damage;
 
-        public void Initialize(int damage)
+        public void Initialize(
+            Character owner,
+            int damage,
+            ITargetDamagePolicy targetPolicy)
         {
             if (_isInitialized)
             {
                 throw new System.InvalidOperationException("Contact damage is already initialized.");
-            }
-
-            if (_enemy == null)
-            {
-                throw new System.InvalidOperationException("Contact damage enemy reference is not configured.");
             }
 
             if (damage <= 0)
@@ -31,49 +29,53 @@ namespace GhostArena
                 throw new System.ArgumentOutOfRangeException(nameof(damage));
             }
 
+            _owner = owner != null ? owner : throw new System.ArgumentNullException(nameof(owner));
+            _targetPolicy = targetPolicy
+                ?? throw new System.ArgumentNullException(nameof(targetPolicy));
             _damage = damage;
             _isInitialized = true;
         }
 
         private void OnCollisionEnter(Collision collision)
         {
-            PlayerController player = collision.collider.GetComponentInParent<PlayerController>();
+            Character target = collision.collider.GetComponentInParent<Character>();
 
-            if (player == null || _isInitialized == false || _enemy.IsGameplayActive == false)
+            if (target == null || _isInitialized == false || _owner.IsGameplayActive == false
+                || _targetPolicy.CanDamage(_owner, target) == false)
             {
                 return;
             }
 
-            _playerContacts.TryGetValue(player, out int contactCount);
-            _playerContacts[player] = contactCount + 1;
+            _targetContacts.TryGetValue(target, out int contactCount);
+            _targetContacts[target] = contactCount + 1;
 
-            if (contactCount == 0 && player.CanReceiveDamage)
+            if (contactCount == 0 && target.CanReceiveDamage)
             {
-                player.Health.TakeDamage(_damage);
+                target.Health.TakeDamage(_damage);
             }
         }
 
         private void OnCollisionExit(Collision collision)
         {
-            PlayerController player = collision.collider.GetComponentInParent<PlayerController>();
+            Character target = collision.collider.GetComponentInParent<Character>();
 
-            if (player == null || _playerContacts.TryGetValue(player, out int contactCount) == false)
+            if (target == null || _targetContacts.TryGetValue(target, out int contactCount) == false)
             {
                 return;
             }
 
             if (contactCount <= 1)
             {
-                _playerContacts.Remove(player);
+                _targetContacts.Remove(target);
                 return;
             }
 
-            _playerContacts[player] = contactCount - 1;
+            _targetContacts[target] = contactCount - 1;
         }
 
         private void OnDisable()
         {
-            _playerContacts.Clear();
+            _targetContacts.Clear();
         }
     }
 }

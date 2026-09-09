@@ -1449,7 +1449,7 @@ MonoBehaviour:
     m_Value: 0
   OutputChannel: 1
   StandbyUpdate: 2
-  m_StreamingVersion: 0
+  m_StreamingVersion: 20241001
   m_LegacyPriority: 0
   Target:
     TrackingTarget: {fileID: 0}
@@ -4915,7 +4915,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GhostArena.CombatFeedback
   _config: {fileID: 11400000, guid: 85ee1f4815a8a4d0086ce09631931ebe, type: 2}
-  _bootstrap: {fileID: 2002979161}
   _effectRoot: {fileID: 374395961}
   _resultAudioSource: {fileID: 248467508}
   _sfxVoices:
@@ -4935,7 +4934,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1858fdb15362c4c0d837f217a8a5ebc4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GhostArena.HudPresenter
-  _bootstrap: {fileID: 2002979161}
   _document: {fileID: 1506977827}
 --- !u!114 &1506977827
 MonoBehaviour:
@@ -6278,6 +6276,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2002979162}
   - component: {fileID: 2002979161}
+  - component: {fileID: 2002979163}
   m_Layer: 0
   m_Name: Game Bootstrap
   m_TagString: Untagged
@@ -6309,6 +6308,9 @@ MonoBehaviour:
   - {fileID: 2080343108}
   _gameplayCamera: {fileID: 1019080287}
   _arenaHalfExtents: {x: 8.3, y: 6.3}
+  _gameLoop: {fileID: 2002979163}
+  _hudPresenter: {fileID: 1506977826}
+  _combatFeedback: {fileID: 1506977825}
 --- !u!4 &2002979162
 Transform:
   m_ObjectHideFlags: 0
@@ -6324,6 +6326,18 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2002979163
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2002979160}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: db18f21935eb847658c78a7f5ae13122, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GhostArena.GameLoop
 --- !u!1 &2021606124
 GameObject:
   m_ObjectHideFlags: 0

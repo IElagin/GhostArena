@@ -12,7 +12,6 @@ GameObject:
   - component: {fileID: 5903763652377708382}
   - component: {fileID: 2048500593301535485}
   - component: {fileID: 804093168896031926}
-  - component: {fileID: 7143540609635518237}
   - component: {fileID: 6175272355065321329}
   - component: {fileID: 6824165735601507289}
   m_Layer: 9
@@ -100,21 +99,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5b4ebc002f6524d64bd08fe6185629df, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GhostArena.ActorHealth
---- !u!114 &7143540609635518237
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1312004891444792460}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2d150c7affc1145f69f65145568181e8, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GhostArena.EnemyController
-  _agent: {fileID: 6824165735601507289}
-  _body: {fileID: 5903763652377708382}
-  _health: {fileID: 804093168896031926}
 --- !u!114 &6175272355065321329
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -127,7 +111,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 64696db16731246f69a418bfb50485b3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GhostArena.ContactDamage
-  _enemy: {fileID: 7143540609635518237}
 --- !u!195 &6824165735601507289
 NavMeshAgent:
   m_ObjectHideFlags: 0

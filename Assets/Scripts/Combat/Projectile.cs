@@ -7,7 +7,8 @@ namespace GhostArena
     {
         [SerializeField] private Rigidbody _body;
 
-        private GameObject _owner;
+        private Character _owner;
+        private ITargetDamagePolicy _targetPolicy;
         private float _movementSpeed;
         private int _damage;
         private float _lifetime;
@@ -15,7 +16,7 @@ namespace GhostArena
         private bool _isConsumed;
         private bool _isInitialized;
 
-        public event Action<Projectile, EnemyController> Hit;
+        public event Action<Projectile, Character> Hit;
 
         public bool IsConsumed => _isConsumed;
 
@@ -25,7 +26,11 @@ namespace GhostArena
 
         public float Lifetime => _lifetime;
 
-        public void Initialize(Vector3 direction, GameObject owner, ProjectileSettings settings)
+        public void Initialize(
+            Vector3 direction,
+            Character owner,
+            ProjectileSettings settings,
+            ITargetDamagePolicy targetPolicy)
         {
             if (_isInitialized)
             {
@@ -48,6 +53,7 @@ namespace GhostArena
             }
 
             _owner = owner != null ? owner : throw new ArgumentNullException(nameof(owner));
+            _targetPolicy = targetPolicy ?? throw new ArgumentNullException(nameof(targetPolicy));
             _movementSpeed = settings.MovementSpeed;
             _damage = settings.Damage;
             _lifetime = settings.Lifetime;
@@ -88,20 +94,26 @@ namespace GhostArena
                 return;
             }
 
-            EnemyController enemy = collision.collider.GetComponentInParent<EnemyController>();
+            Character target = collision.collider.GetComponentInParent<Character>();
 
-            if (enemy != null)
+            if (target != null)
             {
-                if (enemy.Health.IsAlive == false)
+                if (target.Health.IsAlive == false)
                 {
                     IgnoreDeadEnemy(collision.collider);
                     return;
                 }
 
+                if (_targetPolicy.CanDamage(_owner, target) == false)
+                {
+                    Consume();
+                    return;
+                }
+
                 _isConsumed = true;
                 _body.linearVelocity = Vector3.zero;
-                enemy.Health.TakeDamage(_damage);
-                Hit?.Invoke(this, enemy);
+                target.Health.TakeDamage(_damage);
+                Hit?.Invoke(this, target);
                 Destroy(gameObject);
                 return;
             }

@@ -7,13 +7,15 @@ namespace GhostArena
 {
     public sealed class HudPresenter : MonoBehaviour
     {
-        [SerializeField] private GameBootstrap _bootstrap;
         [SerializeField] private UIDocument _document;
 
         private readonly List<VisualElement> _healthDots = new List<VisualElement>();
+        private GameMode _gameMode;
+        private GameplaySettings _settings;
         private GameSession _session;
         private SessionStats _stats;
-        private ActorHealth _playerHealth;
+        private Health _playerHealth;
+        private bool _isViewEnabled;
         private VisualElement _healthRow;
         private VisualElement _pauseOverlay;
         private VisualElement _resultOverlay;
@@ -35,28 +37,56 @@ namespace GhostArena
 
         public GameSession BoundSession => _session;
 
+        public void Bind(GameMode gameMode)
+        {
+            if (gameMode == null)
+            {
+                throw new ArgumentNullException(nameof(gameMode));
+            }
+
+            if (ReferenceEquals(_gameMode, gameMode))
+            {
+                return;
+            }
+
+            DetachGameMode();
+            _gameMode = gameMode;
+
+            if (_isViewEnabled)
+            {
+                AttachGameMode();
+            }
+        }
+
+        public void Unbind(GameMode gameMode)
+        {
+            if (ReferenceEquals(_gameMode, gameMode) == false)
+            {
+                return;
+            }
+
+            DetachGameMode();
+            _gameMode = null;
+        }
+
         private void OnEnable()
         {
-            if (_bootstrap == null || _document == null)
+            if (_document == null)
             {
                 throw new InvalidOperationException("HUD references are not configured.");
             }
 
+            _isViewEnabled = true;
             BindElements();
             SubscribeButtons();
-            _bootstrap.SessionChanged += OnSessionChanged;
-            RebindSession();
+            AttachGameMode();
         }
 
         private void OnDisable()
         {
-            if (_bootstrap != null)
-            {
-                _bootstrap.SessionChanged -= OnSessionChanged;
-            }
-
+            _isViewEnabled = false;
+            DetachGameMode();
             UnsubscribeButtons();
-            UnbindSession();
         }
 
         private void BindElements()
@@ -108,16 +138,18 @@ namespace GhostArena
         private void RebindSession()
         {
             UnbindSession();
-            _session = _bootstrap.Session;
+            MatchRuntime current = _gameMode == null ? null : _gameMode.Current;
 
-            if (_session == null || _bootstrap.Player == null)
+            if (current == null)
             {
                 HideAllCards();
                 return;
             }
 
+            _settings = current.Settings;
+            _session = current.Session;
             _stats = _session.Stats;
-            _playerHealth = _bootstrap.Player.Health;
+            _playerHealth = current.Player.Health;
             RebuildHealthDots();
             _session.StateChanged += OnSessionStateChanged;
             _stats.Changed += OnStatsChanged;
@@ -145,6 +177,7 @@ namespace GhostArena
             _session = null;
             _stats = null;
             _playerHealth = null;
+            _settings = default;
         }
 
         private void RefreshAll()
@@ -157,9 +190,9 @@ namespace GhostArena
 
         private void RefreshObjective()
         {
-            _objectiveLabel.text = _bootstrap.WinRule == WinRule.SurviveTime
-                ? "ПРОДЕРЖИТЕСЬ " + Mathf.CeilToInt(_bootstrap.SurviveDuration) + " СЕК"
-                : "ПОБЕДИТЕ " + _bootstrap.KillTarget + " ДУХОВ";
+            _objectiveLabel.text = _settings.WinRule == WinRule.SurviveTime
+                ? "ПРОДЕРЖИТЕСЬ " + Mathf.CeilToInt(_settings.SurviveDuration) + " СЕК"
+                : "ПОБЕДИТЕ " + _settings.KillTarget + " ДУХОВ";
         }
 
         private void RefreshHealth()
@@ -204,9 +237,9 @@ namespace GhostArena
             string formattedTime = FormatTime(_stats.Elapsed);
             _timeLabel.text = "ВРЕМЯ  " + formattedTime;
             _killsLabel.text = "ДУХИ  " + _stats.Kills;
-            bool showSpawns = _bootstrap.LoseRule == LoseRule.TotalSpawnsExceeded;
+            bool showSpawns = _settings.LoseRule == LoseRule.TotalSpawnsExceeded;
             _spawnsLabel.text = "ПОЯВИЛОСЬ  " + _stats.TotalSpawned
-                + "    ПРЕДЕЛ  " + _bootstrap.TotalSpawnsLimit;
+                + "    ПРЕДЕЛ  " + _settings.TotalSpawnsLimit;
             SetVisible(_spawnsLabel, showSpawns);
             string summary = "Время " + formattedTime + "   •   Духов побеждено " + _stats.Kills;
             _pauseStatsLabel.text = summary;
@@ -224,7 +257,7 @@ namespace GhostArena
             bool isPaused = _session.State == GameState.Paused;
             bool isFinished = _session.State == GameState.Finished;
             bool isFallenRunning = _session.State == GameState.Running
-                && _bootstrap.LoseRule == LoseRule.TotalSpawnsExceeded
+                && _settings.LoseRule == LoseRule.TotalSpawnsExceeded
                 && _playerHealth.IsAlive == false;
             SetVisible(_pauseOverlay, isPaused);
             SetVisible(_resultOverlay, isFinished);
@@ -260,35 +293,35 @@ namespace GhostArena
 
         private string GetVictoryReason()
         {
-            if (_bootstrap.WinRule == WinRule.SurviveTime)
+            if (_settings.WinRule == WinRule.SurviveTime)
             {
-                int duration = Mathf.CeilToInt(_bootstrap.SurviveDuration);
+                int duration = Mathf.CeilToInt(_settings.SurviveDuration);
                 return "Вы продержались " + duration + " секунд.";
             }
 
-            return "Побеждено " + _bootstrap.KillTarget + " духов.";
+            return "Побеждено " + _settings.KillTarget + " духов.";
         }
 
         private string GetDefeatReason()
         {
-            if (_bootstrap.LoseRule == LoseRule.PlayerDeath)
+            if (_settings.LoseRule == LoseRule.PlayerDeath)
             {
                 return "Герой погас в призрачной тьме.";
             }
 
-            int losingSpawn = _bootstrap.TotalSpawnsLimit + 1;
+            int losingSpawn = _settings.TotalSpawnsLimit + 1;
             return "Появился " + losingSpawn + "-й дух — предел "
-                + _bootstrap.TotalSpawnsLimit + " превышен.";
+                + _settings.TotalSpawnsLimit + " превышен.";
         }
 
         private void RefreshFallenReason()
         {
-            int losingSpawn = _bootstrap.TotalSpawnsLimit + 1;
+            int losingSpawn = _settings.TotalSpawnsLimit + 1;
 
-            if (_bootstrap.WinRule == WinRule.KillEnemies)
+            if (_settings.WinRule == WinRule.KillEnemies)
             {
                 _fallenReasonLabel.text = "Матч продолжается: победа — "
-                    + _bootstrap.KillTarget + " духов, поражение — появление "
+                    + _settings.KillTarget + " духов, поражение — появление "
                     + losingSpawn + "-го духа.";
                 return;
             }
@@ -313,7 +346,7 @@ namespace GhostArena
             _fallenRestartButton.Blur();
         }
 
-        private void OnSessionChanged()
+        private void OnMatchChanged()
         {
             ClearButtonFocus();
             RebindSession();
@@ -339,19 +372,41 @@ namespace GhostArena
         private void OnPauseClicked()
         {
             _pauseButton.Blur();
-            _bootstrap.TogglePause();
+            _gameMode.TogglePause();
         }
 
         private void OnResumeClicked()
         {
             _resumeButton.Blur();
-            _bootstrap.TogglePause();
+            _gameMode.TogglePause();
         }
 
         private void OnRestartClicked()
         {
             ClearButtonFocus();
-            _bootstrap.Restart();
+            _gameMode.Restart();
+        }
+
+        private void AttachGameMode()
+        {
+            if (_gameMode == null)
+            {
+                HideAllCards();
+                return;
+            }
+
+            _gameMode.MatchChanged += OnMatchChanged;
+            RebindSession();
+        }
+
+        private void DetachGameMode()
+        {
+            if (_gameMode != null)
+            {
+                _gameMode.MatchChanged -= OnMatchChanged;
+            }
+
+            UnbindSession();
         }
 
         private static T RequireElement<T>(VisualElement root, string elementName)

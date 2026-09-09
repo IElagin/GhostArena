@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -10,35 +9,30 @@ namespace GhostArena
         private const float PlayerDeathEffectHeight = 0.4f;
         private const float EnemyEffectHeight = 0.35f;
         private const float ProjectileHitEffectHeight = 0.45f;
-        private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
-        private static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
 
         [Header("Configuration")]
         [SerializeField] private CombatFeedbackConfig _config;
 
         [Header("Session")]
-        [SerializeField] private GameBootstrap _bootstrap;
         [SerializeField] private Transform _effectRoot;
 
         [Header("Audio")]
         [SerializeField] private AudioSource _resultAudioSource;
         [SerializeField] private AudioSource[] _sfxVoices;
 
-        private readonly Dictionary<EnemyController, Action> _enemyHealthHandlers =
-            new Dictionary<EnemyController, Action>();
+        private readonly Dictionary<Character, Action> _enemyHealthHandlers =
+            new Dictionary<Character, Action>();
         private readonly HashSet<Projectile> _trackedProjectiles = new HashSet<Projectile>();
-        private readonly Dictionary<GameObject, FlashState> _flashes =
-            new Dictionary<GameObject, FlashState>();
-        private readonly List<ParticleSystem> _activeEffects = new List<ParticleSystem>();
+        private GameMode _gameMode;
         private GameSession _session;
-        private GameSession _settingsSession;
-        private ActorHealth _playerHealth;
-        private EntityRegistry<EnemyController> _enemies;
-        private PlayerShooter _shooter;
+        private Character _player;
+        private Health _playerHealth;
+        private EntityRegistry<Character> _enemies;
+        private Weapon _weapon;
         private CombatFeedbackSettings _settings;
-        private CombatFeedbackSettings _preparedSettings;
-        private bool _hasPreparedSettings;
-        private int _nextSfxVoice;
+        private CombatAudioPlayer _audioPlayer;
+        private CombatEffectsPlayer _effectsPlayer;
+        private bool _isViewEnabled;
 
         public GameSession BoundSession => _session;
 
@@ -46,27 +40,54 @@ namespace GhostArena
 
         public CombatFeedbackSettings Settings => _settings;
 
+        public void Bind(GameMode gameMode)
+        {
+            if (gameMode == null)
+            {
+                throw new ArgumentNullException(nameof(gameMode));
+            }
+
+            if (ReferenceEquals(_gameMode, gameMode))
+            {
+                return;
+            }
+
+            DetachGameMode();
+            _gameMode = gameMode;
+
+            if (_isViewEnabled)
+            {
+                AttachGameMode();
+            }
+        }
+
+        public void Unbind(GameMode gameMode)
+        {
+            if (ReferenceEquals(_gameMode, gameMode) == false)
+            {
+                return;
+            }
+
+            DetachGameMode();
+            _gameMode = null;
+        }
+
         private void OnEnable()
         {
             ValidateReferences();
-            RebindSession();
-            _bootstrap.SessionStarting += OnSessionStarting;
-            _bootstrap.SessionChanged += OnSessionChanged;
+            _audioPlayer = new CombatAudioPlayer(_resultAudioSource, _sfxVoices);
+            _effectsPlayer = new CombatEffectsPlayer(this, _effectRoot);
+            _isViewEnabled = true;
+            AttachGameMode();
         }
 
         private void OnDisable()
         {
-            if (_bootstrap != null)
-            {
-                _bootstrap.SessionStarting -= OnSessionStarting;
-                _bootstrap.SessionChanged -= OnSessionChanged;
-            }
-
-            _preparedSettings = default;
-            _hasPreparedSettings = false;
-            UnbindSession();
+            _isViewEnabled = false;
+            DetachGameMode();
             ClearTransientFeedback();
-            AudioListener.pause = false;
+            _audioPlayer = null;
+            _effectsPlayer = null;
         }
 
         private void Update()
@@ -76,25 +97,7 @@ namespace GhostArena
                 return;
             }
 
-            for (int index = _activeEffects.Count - 1; index >= 0; index--)
-            {
-                ParticleSystem effect = _activeEffects[index];
-
-                if (effect == null)
-                {
-                    _activeEffects.RemoveAt(index);
-                    continue;
-                }
-
-                effect.Simulate(Time.unscaledDeltaTime, true, false, false);
-
-                if (effect.IsAlive(true) == false)
-                {
-                    effect.gameObject.SetActive(false);
-                    Destroy(effect.gameObject);
-                    _activeEffects.RemoveAt(index);
-                }
-            }
+            _effectsPlayer.TickTerminal(Time.unscaledDeltaTime);
         }
 
         private void ValidateReferences()
@@ -104,7 +107,7 @@ namespace GhostArena
                 throw new InvalidOperationException("Combat feedback config is not assigned.");
             }
 
-            if (_bootstrap == null || _effectRoot == null || _resultAudioSource == null)
+            if (_effectRoot == null || _resultAudioSource == null)
             {
                 throw new InvalidOperationException("Combat feedback scene references are not configured.");
             }
@@ -125,64 +128,36 @@ namespace GhostArena
 
         private void RebindSession()
         {
-            GameSession session = _bootstrap.Session;
-            CombatFeedbackSettings settings;
-
-            if (_hasPreparedSettings)
-            {
-                settings = _preparedSettings;
-                _preparedSettings = default;
-                _hasPreparedSettings = false;
-            }
-            else if (session != null && ReferenceEquals(_settingsSession, session))
-            {
-                settings = _settings;
-            }
-            else
-            {
-                settings = _config.CreateSettings();
-            }
-
             UnbindSession();
             ClearTransientFeedback();
-            _settings = settings;
-            _settingsSession = session;
-            ApplySourceGains();
-            _session = session;
+            MatchRuntime current = _gameMode == null ? null : _gameMode.Current;
 
-            if (_session == null || _bootstrap.Player == null || _bootstrap.Enemies == null
-                || _bootstrap.Shooter == null)
+            if (current == null)
             {
                 return;
             }
 
-            _playerHealth = _bootstrap.Player.Health;
-            _enemies = _bootstrap.Enemies;
-            _shooter = _bootstrap.Shooter;
+            _settings = _config.CreateSettings();
+            _audioPlayer.Configure(_settings.SfxSourceGain, _settings.ResultSourceGain);
+            _session = current.Session;
+            _player = current.Player;
+            _playerHealth = _player.Health;
+            _enemies = current.Enemies;
+            _weapon = current.Weapon;
             _session.StateChanged += OnSessionStateChanged;
             _session.Ended += OnSessionEnded;
             _playerHealth.Changed += OnPlayerHealthChanged;
             _playerHealth.Died += OnPlayerDied;
             _enemies.Added += OnEnemyAdded;
             _enemies.Removed += OnEnemyRemoved;
-            _shooter.Shot += OnShot;
+            _weapon.Shot += OnShot;
 
-            foreach (EnemyController enemy in _enemies.Items)
+            foreach (Character enemy in _enemies.Items)
             {
                 SubscribeEnemy(enemy);
             }
 
-            AudioListener.pause = _session.State == GameState.Paused;
-        }
-
-        private void ApplySourceGains()
-        {
-            _resultAudioSource.volume = _settings.ResultSourceGain;
-
-            foreach (AudioSource sfxVoice in _sfxVoices)
-            {
-                sfxVoice.volume = _settings.SfxSourceGain;
-            }
+            _audioPlayer.SetPaused(_session.State == GameState.Paused);
         }
 
         private void UnbindSession()
@@ -205,15 +180,15 @@ namespace GhostArena
                 _enemies.Removed -= OnEnemyRemoved;
             }
 
-            if (_shooter != null)
+            if (_weapon != null)
             {
-                _shooter.Shot -= OnShot;
+                _weapon.Shot -= OnShot;
             }
 
-            EnemyController[] subscribedEnemies = new EnemyController[_enemyHealthHandlers.Count];
+            Character[] subscribedEnemies = new Character[_enemyHealthHandlers.Count];
             _enemyHealthHandlers.Keys.CopyTo(subscribedEnemies, 0);
 
-            foreach (EnemyController enemy in subscribedEnemies)
+            foreach (Character enemy in subscribedEnemies)
             {
                 UnsubscribeEnemy(enemy);
             }
@@ -228,12 +203,13 @@ namespace GhostArena
 
             _trackedProjectiles.Clear();
             _session = null;
+            _player = null;
             _playerHealth = null;
             _enemies = null;
-            _shooter = null;
+            _weapon = null;
         }
 
-        private void SubscribeEnemy(EnemyController enemy)
+        private void SubscribeEnemy(Character enemy)
         {
             if (enemy == null || _enemyHealthHandlers.ContainsKey(enemy))
             {
@@ -246,7 +222,7 @@ namespace GhostArena
             enemy.Died += OnEnemyDied;
         }
 
-        private void UnsubscribeEnemy(EnemyController enemy)
+        private void UnsubscribeEnemy(Character enemy)
         {
             if (ReferenceEquals(enemy, null)
                 || _enemyHealthHandlers.TryGetValue(enemy, out Action healthHandler) == false)
@@ -265,299 +241,91 @@ namespace GhostArena
 
         private void ClearTransientFeedback()
         {
-            StopAllCoroutines();
-            RestoreAllFlashes();
-
-            foreach (ParticleSystem effect in _activeEffects)
-            {
-                if (effect != null)
-                {
-                    effect.gameObject.SetActive(false);
-                    Destroy(effect.gameObject);
-                }
-            }
-
-            _activeEffects.Clear();
-            ClearAudio();
+            _effectsPlayer?.Clear();
+            _audioPlayer?.Clear();
         }
 
-        private void ClearAudio()
-        {
-            _resultAudioSource.Stop();
-
-            foreach (AudioSource sfxVoice in _sfxVoices)
-            {
-                sfxVoice.Stop();
-            }
-
-            _nextSfxVoice = 0;
-        }
-
-        private void RestoreAllFlashes()
-        {
-            foreach (FlashState flashState in _flashes.Values)
-            {
-                RestoreFlash(flashState);
-            }
-
-            _flashes.Clear();
-        }
-
-        private void Flash(GameObject actor, Color flashColor, Color flashEmission)
-        {
-            if (actor == null)
-            {
-                return;
-            }
-
-            if (_flashes.TryGetValue(actor, out FlashState flashState))
-            {
-                StopCoroutine(flashState.Coroutine);
-            }
-            else
-            {
-                flashState = CaptureFlashState(actor);
-
-                if (flashState.Slots.Count == 0)
-                {
-                    return;
-                }
-
-                _flashes.Add(actor, flashState);
-            }
-
-            ApplyFlash(flashState, flashColor, flashEmission);
-            flashState.Coroutine = StartCoroutine(RestoreFlashAfterDelay(actor, flashState));
-        }
-
-        private static FlashState CaptureFlashState(GameObject actor)
-        {
-            FlashState flashState = new FlashState();
-
-            foreach (Renderer renderer in actor.GetComponentsInChildren<Renderer>(true))
-            {
-                Material[] materials = renderer.sharedMaterials;
-
-                for (int materialIndex = 0; materialIndex < materials.Length; materialIndex++)
-                {
-                    Material material = materials[materialIndex];
-
-                    if (material == null)
-                    {
-                        continue;
-                    }
-
-                    bool hasBaseColor = material.HasProperty(BaseColorId);
-                    bool hasEmission = material.HasProperty(EmissionColorId);
-
-                    if (hasBaseColor == false && hasEmission == false)
-                    {
-                        continue;
-                    }
-
-                    MaterialPropertyBlock block = new MaterialPropertyBlock();
-                    renderer.GetPropertyBlock(block, materialIndex);
-                    Color baseColor = hasBaseColor
-                        ? block.HasColor(BaseColorId)
-                            ? block.GetColor(BaseColorId)
-                            : material.GetColor(BaseColorId)
-                        : Color.clear;
-                    Color emissionColor = hasEmission
-                        ? block.HasColor(EmissionColorId)
-                            ? block.GetColor(EmissionColorId)
-                            : material.GetColor(EmissionColorId)
-                        : Color.clear;
-                    flashState.Slots.Add(new MaterialSlotState(
-                        renderer,
-                        materialIndex,
-                        block,
-                        hasBaseColor,
-                        baseColor,
-                        hasEmission,
-                        emissionColor));
-                }
-            }
-
-            return flashState;
-        }
-
-        private static void ApplyFlash(
-            FlashState flashState,
-            Color flashColor,
-            Color flashEmission)
-        {
-            foreach (MaterialSlotState slot in flashState.Slots)
-            {
-                if (slot.Renderer == null)
-                {
-                    continue;
-                }
-
-                if (slot.HasBaseColor)
-                {
-                    slot.Block.SetColor(BaseColorId, flashColor);
-                }
-
-                if (slot.HasEmission)
-                {
-                    slot.Block.SetColor(EmissionColorId, flashEmission);
-                }
-
-                slot.Renderer.SetPropertyBlock(slot.Block, slot.MaterialIndex);
-            }
-        }
-
-        private static void RestoreFlash(FlashState flashState)
-        {
-            foreach (MaterialSlotState slot in flashState.Slots)
-            {
-                if (slot.Renderer == null)
-                {
-                    continue;
-                }
-
-                if (slot.HasBaseColor)
-                {
-                    slot.Block.SetColor(BaseColorId, slot.BaseColor);
-                }
-
-                if (slot.HasEmission)
-                {
-                    slot.Block.SetColor(EmissionColorId, slot.EmissionColor);
-                }
-
-                slot.Renderer.SetPropertyBlock(slot.Block, slot.MaterialIndex);
-            }
-        }
-
-        private IEnumerator RestoreFlashAfterDelay(GameObject actor, FlashState flashState)
-        {
-            float elapsed = 0f;
-
-            while (elapsed < _settings.FlashDuration)
-            {
-                elapsed += Time.deltaTime;
-                yield return null;
-            }
-
-            RestoreFlash(flashState);
-            _flashes.Remove(actor);
-        }
-
-        private void PlayEffect(ParticleSystem effectPrefab, Vector3 position)
-        {
-            for (int index = _activeEffects.Count - 1; index >= 0; index--)
-            {
-                if (_activeEffects[index] == null)
-                {
-                    _activeEffects.RemoveAt(index);
-                }
-            }
-
-            ParticleSystem effect = Instantiate(
-                effectPrefab,
-                position,
-                Quaternion.identity,
-                _effectRoot);
-            _activeEffects.Add(effect);
-            effect.Play(true);
-            float lifetime = effect.main.duration + effect.main.startLifetime.constantMax;
-            Destroy(effect.gameObject, lifetime);
-        }
-
-        private void PlayCue(AudioClip clip, float volume)
-        {
-            AudioSource sfxVoice = _sfxVoices[_nextSfxVoice];
-            _nextSfxVoice = (_nextSfxVoice + 1) % _sfxVoices.Length;
-            sfxVoice.Stop();
-            sfxVoice.PlayOneShot(clip, volume);
-        }
-
-        private void OnSessionChanged()
+        private void OnMatchChanged()
         {
             RebindSession();
         }
 
-        private void OnSessionStarting()
-        {
-            CombatFeedbackSettings settings = _config.CreateSettings();
-            _preparedSettings = settings;
-            _hasPreparedSettings = true;
-        }
-
         private void OnSessionStateChanged()
         {
-            AudioListener.pause = _session != null && _session.State == GameState.Paused;
+            _audioPlayer.SetPaused(_session != null && _session.State == GameState.Paused);
         }
 
         private void OnSessionEnded(GameResult result)
         {
-            AudioListener.pause = false;
-            StopAllCoroutines();
-            RestoreAllFlashes();
-            _resultAudioSource.Stop();
+            _audioPlayer.SetPaused(false);
+            _effectsPlayer.RestoreFlashes();
             AudioClip resultClip = result == GameResult.Victory
                 ? _settings.VictoryClip
                 : _settings.DefeatClip;
             float resultGain = result == GameResult.Victory
                 ? _settings.VictoryGain
                 : _settings.DefeatGain;
-            _resultAudioSource.PlayOneShot(resultClip, resultGain);
+            _audioPlayer.PlayResult(resultClip, resultGain);
         }
 
         private void OnPlayerHealthChanged()
         {
-            PlayCue(_settings.PlayerHurtClip, _settings.PlayerHurtGain);
-            Flash(
-                _bootstrap.Player.gameObject,
+            _audioPlayer.Play(_settings.PlayerHurtClip, _settings.PlayerHurtGain);
+            _effectsPlayer.Flash(
+                _player.gameObject,
                 _settings.PlayerFlashColor,
-                _settings.PlayerFlashEmission);
+                _settings.PlayerFlashEmission,
+                _settings.FlashDuration);
         }
 
         private void OnPlayerDied()
         {
-            PlayEffect(
+            _effectsPlayer.Play(
                 _settings.DeathEffectPrefab,
-                _bootstrap.Player.transform.position + Vector3.up * PlayerDeathEffectHeight);
+                _player.transform.position + Vector3.up * PlayerDeathEffectHeight);
         }
 
-        private void OnEnemyAdded(EnemyController enemy)
+        private void OnEnemyAdded(Character enemy)
         {
             SubscribeEnemy(enemy);
-            PlayEffect(
+            _effectsPlayer.Play(
                 _settings.SpawnEffectPrefab,
                 enemy.transform.position + Vector3.up * EnemyEffectHeight);
-            PlayCue(_settings.SpawnClip, _settings.SpawnGain);
+            _audioPlayer.Play(_settings.SpawnClip, _settings.SpawnGain);
         }
 
-        private void OnEnemyRemoved(EnemyController enemy)
+        private void OnEnemyRemoved(Character enemy)
         {
             UnsubscribeEnemy(enemy);
         }
 
-        private void OnEnemyHealthChanged(EnemyController enemy)
+        private void OnEnemyHealthChanged(Character enemy)
         {
             if (enemy == null || enemy.Health.IsAlive == false)
             {
                 return;
             }
 
-            PlayCue(_settings.EnemyHitClip, _settings.EnemyHitGain);
-            Flash(enemy.gameObject, _settings.EnemyFlashColor, _settings.EnemyFlashEmission);
+            _audioPlayer.Play(_settings.EnemyHitClip, _settings.EnemyHitGain);
+            _effectsPlayer.Flash(
+                enemy.gameObject,
+                _settings.EnemyFlashColor,
+                _settings.EnemyFlashEmission,
+                _settings.FlashDuration);
         }
 
-        private void OnEnemyDied(EnemyController enemy)
+        private void OnEnemyDied(Character enemy)
         {
-            PlayEffect(
+            _effectsPlayer.Play(
                 _settings.DeathEffectPrefab,
                 enemy.transform.position + Vector3.up * EnemyEffectHeight);
-            PlayCue(_settings.EnemyDeathClip, _settings.EnemyDeathGain);
+            _audioPlayer.Play(_settings.EnemyDeathClip, _settings.EnemyDeathGain);
         }
 
         private void OnShot(Projectile projectile)
         {
             _trackedProjectiles.RemoveWhere(trackedProjectile => trackedProjectile == null);
-            PlayCue(_settings.ShotClip, _settings.ShotGain);
+            _audioPlayer.Play(_settings.ShotClip, _settings.ShotGain);
 
             if (projectile != null && _trackedProjectiles.Add(projectile))
             {
@@ -565,58 +333,38 @@ namespace GhostArena
             }
         }
 
-        private void OnProjectileHit(Projectile projectile, EnemyController enemy)
+        private void OnProjectileHit(Projectile projectile, Character enemy)
         {
             projectile.Hit -= OnProjectileHit;
             _trackedProjectiles.Remove(projectile);
 
             if (enemy != null)
             {
-                PlayEffect(
+                _effectsPlayer.Play(
                     _settings.HitEffectPrefab,
                     enemy.transform.position + Vector3.up * ProjectileHitEffectHeight);
             }
         }
 
-        private sealed class FlashState
+        private void AttachGameMode()
         {
-            public readonly List<MaterialSlotState> Slots = new List<MaterialSlotState>();
-            public Coroutine Coroutine;
-        }
-
-        private sealed class MaterialSlotState
-        {
-            public MaterialSlotState(
-                Renderer renderer,
-                int materialIndex,
-                MaterialPropertyBlock block,
-                bool hasBaseColor,
-                Color baseColor,
-                bool hasEmission,
-                Color emissionColor)
+            if (_gameMode == null)
             {
-                Renderer = renderer;
-                MaterialIndex = materialIndex;
-                Block = block;
-                HasBaseColor = hasBaseColor;
-                BaseColor = baseColor;
-                HasEmission = hasEmission;
-                EmissionColor = emissionColor;
+                return;
             }
 
-            public Renderer Renderer { get; }
+            _gameMode.MatchChanged += OnMatchChanged;
+            RebindSession();
+        }
 
-            public int MaterialIndex { get; }
+        private void DetachGameMode()
+        {
+            if (_gameMode != null)
+            {
+                _gameMode.MatchChanged -= OnMatchChanged;
+            }
 
-            public MaterialPropertyBlock Block { get; }
-
-            public bool HasBaseColor { get; }
-
-            public Color BaseColor { get; }
-
-            public bool HasEmission { get; }
-
-            public Color EmissionColor { get; }
+            UnbindSession();
         }
     }
 }

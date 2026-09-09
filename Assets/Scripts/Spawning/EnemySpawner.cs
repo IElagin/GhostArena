@@ -5,31 +5,33 @@ namespace GhostArena
 {
     public sealed class EnemySpawner : IDisposable
     {
-        private readonly GameObject _enemyPrefab;
+        private readonly CharactersFactory _charactersFactory;
+        private readonly ControllersUpdateService _controllers;
+        private readonly EntityRegistry<Character> _enemies;
+        private readonly SessionStats _stats;
         private readonly Transform[] _spawnPoints;
-        private readonly Transform _runtimeRoot;
-        private readonly Vector2 _arenaHalfExtents;
         private readonly float _spawnInterval;
         private readonly EnemySettings _enemySettings;
         private readonly GhostVisualSettings _visualSettings;
         private float _elapsed;
+        private bool _isGameplayActive;
         private bool _isDisposed;
 
         public EnemySpawner(
-            GameObject enemyPrefab,
+            CharactersFactory charactersFactory,
+            ControllersUpdateService controllers,
+            EntityRegistry<Character> enemies,
+            SessionStats stats,
             Transform[] spawnPoints,
-            Transform runtimeRoot,
-            Vector2 arenaHalfExtents,
             float spawnInterval,
             EnemySettings enemySettings,
             GhostVisualSettings visualSettings)
         {
-            _enemyPrefab = enemyPrefab != null
-                ? enemyPrefab
-                : throw new ArgumentNullException(nameof(enemyPrefab));
-            _runtimeRoot = runtimeRoot != null
-                ? runtimeRoot
-                : throw new ArgumentNullException(nameof(runtimeRoot));
+            _charactersFactory = charactersFactory
+                ?? throw new ArgumentNullException(nameof(charactersFactory));
+            _controllers = controllers ?? throw new ArgumentNullException(nameof(controllers));
+            _enemies = enemies ?? throw new ArgumentNullException(nameof(enemies));
+            _stats = stats ?? throw new ArgumentNullException(nameof(stats));
 
             if (spawnPoints == null || spawnPoints.Length == 0)
             {
@@ -49,30 +51,30 @@ namespace GhostArena
                 throw new ArgumentOutOfRangeException(nameof(spawnInterval));
             }
 
-            if (enemySettings.MaximumHealth <= 0)
-            {
-                throw new ArgumentOutOfRangeException(nameof(enemySettings));
-            }
-
-            if (arenaHalfExtents.x <= 0f || arenaHalfExtents.y <= 0f)
-            {
-                throw new ArgumentOutOfRangeException(nameof(arenaHalfExtents));
-            }
-
             _spawnPoints = (Transform[])spawnPoints.Clone();
-            _arenaHalfExtents = arenaHalfExtents;
             _spawnInterval = spawnInterval;
             _enemySettings = enemySettings;
             _visualSettings = visualSettings;
         }
 
-        public event Action<EnemyController> Spawned;
-
         public float SpawnInterval => _spawnInterval;
+
+        public void SetGameplayActive(bool isActive)
+        {
+            _isGameplayActive = isActive && _isDisposed == false;
+
+            foreach (Character enemy in _enemies.Items)
+            {
+                if (enemy != null)
+                {
+                    enemy.SetGameplayActive(_isGameplayActive);
+                }
+            }
+        }
 
         public void Tick(float deltaTime)
         {
-            if (_isDisposed)
+            if (_isGameplayActive == false || _isDisposed)
             {
                 return;
             }
@@ -95,38 +97,75 @@ namespace GhostArena
 
         public void Dispose()
         {
+            if (_isDisposed)
+            {
+                return;
+            }
+
             _isDisposed = true;
-            Spawned = null;
+            _isGameplayActive = false;
+            Character[] enemies = new Character[_enemies.Count];
+
+            for (int index = 0; index < _enemies.Count; index++)
+            {
+                enemies[index] = _enemies.Items[index];
+            }
+
+            foreach (Character enemy in enemies)
+            {
+                Release(enemy, false);
+            }
         }
 
         private void Spawn()
         {
             int spawnIndex = UnityEngine.Random.Range(0, _spawnPoints.Length);
-            Transform spawnPoint = _spawnPoints[spawnIndex];
-            GameObject enemyObject = UnityEngine.Object.Instantiate(
-                _enemyPrefab,
-                spawnPoint.position,
-                spawnPoint.rotation,
-                _runtimeRoot);
-            EnemyController enemy = enemyObject.GetComponent<EnemyController>();
+            Character enemy = _charactersFactory.CreateEnemy(
+                _spawnPoints[spawnIndex],
+                _enemySettings,
+                _visualSettings);
+            enemy.Died += OnEnemyDied;
 
-            if (enemy == null)
+            if (_enemies.Add(enemy) == false)
             {
-                UnityEngine.Object.Destroy(enemyObject);
-                throw new InvalidOperationException("Enemy prefab has no EnemyController component.");
+                enemy.Died -= OnEnemyDied;
+                _controllers.Remove(enemy.Controller);
+                enemy.Dispose();
+                UnityEngine.Object.Destroy(enemy.gameObject);
+                return;
             }
 
-            GhostVisual visual = enemyObject.GetComponentInChildren<GhostVisual>(true);
+            _stats.RecordSpawn();
+            enemy.SetGameplayActive(_isGameplayActive);
+        }
 
-            if (visual == null)
+        private void Release(Character enemy, bool wasKilled)
+        {
+            if (ReferenceEquals(enemy, null))
             {
-                UnityEngine.Object.Destroy(enemyObject);
-                throw new InvalidOperationException("Enemy prefab has no GhostVisual component.");
+                return;
             }
 
-            enemy.Initialize(_arenaHalfExtents, _enemySettings);
-            visual.Initialize(_visualSettings);
-            Spawned?.Invoke(enemy);
+            enemy.Died -= OnEnemyDied;
+
+            if (_enemies.Remove(enemy) == false)
+            {
+                return;
+            }
+
+            _controllers.Remove(enemy.Controller);
+            enemy.Dispose();
+            _stats.RecordRemoval(wasKilled);
+
+            if (enemy != null)
+            {
+                UnityEngine.Object.Destroy(enemy.gameObject);
+            }
+        }
+
+        private void OnEnemyDied(Character enemy)
+        {
+            Release(enemy, true);
         }
     }
 }
