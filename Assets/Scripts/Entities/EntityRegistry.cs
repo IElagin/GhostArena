@@ -43,14 +43,5 @@ namespace GhostArena
             return true;
         }
 
-        public void Clear()
-        {
-            T[] snapshot = _items.ToArray();
-
-            foreach (T item in snapshot)
-            {
-                Remove(item);
-            }
-        }
     }
 }

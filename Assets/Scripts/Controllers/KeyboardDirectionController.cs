@@ -9,6 +9,7 @@ namespace GhostArena
         private readonly IDirectionalMover _mover;
         private readonly Camera _camera;
         private readonly InputAction _moveAction;
+        private Vector2 _inputVector;
 
         public KeyboardDirectionController(IDirectionalMover mover, Camera camera)
         {
@@ -27,8 +28,6 @@ namespace GhostArena
                 .With("Right", "<Keyboard>/rightArrow");
         }
 
-        public Vector2 InputVector { get; private set; }
-
         public override void Enable()
         {
             base.Enable();
@@ -44,7 +43,7 @@ namespace GhostArena
 
             base.Disable();
             _moveAction.Disable();
-            InputVector = Vector2.zero;
+            _inputVector = Vector2.zero;
             _mover.Stop();
         }
 
@@ -55,14 +54,14 @@ namespace GhostArena
 
         protected override void OnTick(float deltaTime)
         {
-            InputVector = Vector2.ClampMagnitude(_moveAction.ReadValue<Vector2>(), 1f);
+            _inputVector = Vector2.ClampMagnitude(_moveAction.ReadValue<Vector2>(), 1f);
             Vector3 cameraForward = _camera.transform.forward;
             Vector3 cameraRight = _camera.transform.right;
             cameraForward.y = 0f;
             cameraRight.y = 0f;
             cameraForward.Normalize();
             cameraRight.Normalize();
-            Vector3 direction = cameraRight * InputVector.x + cameraForward * InputVector.y;
+            Vector3 direction = cameraRight * _inputVector.x + cameraForward * _inputVector.y;
             _mover.SetDirection(Vector3.ClampMagnitude(direction, 1f));
         }
     }

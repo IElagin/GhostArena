@@ -14,19 +14,13 @@ namespace GhostArena
         [Tooltip("Maximum vertical squash and stretch amount.")]
         [SerializeField] private float _squashAmount = 0.025f;
 
-        public float BobHeight => _bobHeight;
-
-        public float BobSpeed => _bobSpeed;
-
-        public float SquashAmount => _squashAmount;
-
         public GhostVisualSettings CreateSettings()
         {
             Validate();
             return new GhostVisualSettings(_bobHeight, _bobSpeed, _squashAmount);
         }
 
-        public void Validate()
+        private void Validate()
         {
             ValidateNonNegativeFinite(_bobHeight, "Bob height");
 

@@ -8,7 +8,6 @@ namespace GhostArena
     {
         private const float PlayerDeathEffectHeight = 0.4f;
         private const float EnemyEffectHeight = 0.35f;
-        private const float ProjectileHitEffectHeight = 0.45f;
 
         [Header("Configuration")]
         [SerializeField] private CombatFeedbackConfig _config;
@@ -33,12 +32,6 @@ namespace GhostArena
         private CombatAudioPlayer _audioPlayer;
         private CombatEffectsPlayer _effectsPlayer;
         private bool _isViewEnabled;
-
-        public GameSession BoundSession => _session;
-
-        public CombatFeedbackConfig Config => _config;
-
-        public CombatFeedbackSettings Settings => _settings;
 
         public void Bind(GameMode gameMode)
         {
@@ -333,17 +326,11 @@ namespace GhostArena
             }
         }
 
-        private void OnProjectileHit(Projectile projectile, Character enemy)
+        private void OnProjectileHit(Projectile projectile, Vector3 hitPosition)
         {
             projectile.Hit -= OnProjectileHit;
             _trackedProjectiles.Remove(projectile);
-
-            if (enemy != null)
-            {
-                _effectsPlayer.Play(
-                    _settings.HitEffectPrefab,
-                    enemy.transform.position + Vector3.up * ProjectileHitEffectHeight);
-            }
+            _effectsPlayer.Play(_settings.HitEffectPrefab, hitPosition);
         }
 
         private void AttachGameMode()

@@ -24,7 +24,7 @@ namespace GhostArena
         [SerializeField] private HudPresenter _hudPresenter;
         [SerializeField] private CombatFeedback _combatFeedback;
 
-        public GameMode GameMode { get; private set; }
+        private GameMode _gameMode;
 
         private void Awake()
         {
@@ -42,29 +42,29 @@ namespace GhostArena
                 _enemySpawns,
                 _gameplayCamera,
                 _arenaHalfExtents);
-            GameMode = new GameMode(matchFactory);
-            GameMode.BindInputController(controllersFactory.CreateGameModeInput(GameMode));
-            _gameLoop.Initialize(GameMode);
-            _hudPresenter.Bind(GameMode);
-            _combatFeedback.Bind(GameMode);
+            _gameMode = new GameMode(matchFactory);
+            _gameMode.BindInputController(controllersFactory.CreateGameModeInput(_gameMode));
+            _gameLoop.Initialize(_gameMode);
+            _hudPresenter.Bind(_gameMode);
+            _combatFeedback.Bind(_gameMode);
         }
 
         private void Start()
         {
-            GameMode.Start();
+            _gameMode.Start();
         }
 
         private void OnDestroy()
         {
-            if (GameMode == null)
+            if (_gameMode == null)
             {
                 return;
             }
 
-            _hudPresenter.Unbind(GameMode);
-            _combatFeedback.Unbind(GameMode);
-            GameMode.Dispose();
-            GameMode = null;
+            _hudPresenter.Unbind(_gameMode);
+            _combatFeedback.Unbind(_gameMode);
+            _gameMode.Dispose();
+            _gameMode = null;
         }
 
         private void ValidateCompositionReferences()

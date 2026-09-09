@@ -26,37 +26,13 @@ namespace GhostArena
             Camera gameplayCamera,
             Vector2 arenaHalfExtents)
         {
-            _config = config != null ? config : throw new ArgumentNullException(nameof(config));
-            _controllersFactory = controllersFactory
-                ?? throw new ArgumentNullException(nameof(controllersFactory));
-            _playerPrefab = playerPrefab != null
-                ? playerPrefab
-                : throw new ArgumentNullException(nameof(playerPrefab));
-            _enemyPrefab = enemyPrefab != null
-                ? enemyPrefab
-                : throw new ArgumentNullException(nameof(enemyPrefab));
-            _projectilePrefab = projectilePrefab != null
-                ? projectilePrefab
-                : throw new ArgumentNullException(nameof(projectilePrefab));
-            _playerSpawn = playerSpawn != null
-                ? playerSpawn
-                : throw new ArgumentNullException(nameof(playerSpawn));
-            _gameplayCamera = gameplayCamera != null
-                ? gameplayCamera
-                : throw new ArgumentNullException(nameof(gameplayCamera));
-
-            if (enemySpawns == null || enemySpawns.Length == 0)
-            {
-                throw new ArgumentException("Enemy spawn points are not configured.", nameof(enemySpawns));
-            }
-
-            foreach (Transform spawnPoint in enemySpawns)
-            {
-                if (spawnPoint == null)
-                {
-                    throw new ArgumentException("Enemy spawn points cannot contain null.", nameof(enemySpawns));
-                }
-            }
+            _config = config;
+            _controllersFactory = controllersFactory;
+            _playerPrefab = playerPrefab;
+            _enemyPrefab = enemyPrefab;
+            _projectilePrefab = projectilePrefab;
+            _playerSpawn = playerSpawn;
+            _gameplayCamera = gameplayCamera;
 
             if (arenaHalfExtents.x <= 0f || arenaHalfExtents.y <= 0f
                 || float.IsNaN(arenaHalfExtents.x) || float.IsInfinity(arenaHalfExtents.x)
@@ -71,24 +47,18 @@ namespace GhostArena
 
         public SessionConfiguration CaptureConfiguration()
         {
-            ValidatePrefab<Character>(_playerPrefab, "Player");
-            ValidatePrefab<Rigidbody>(_playerPrefab, "Player");
-            ValidatePrefab<WeaponMount>(_playerPrefab, "Player");
-            ValidateChildPrefab<GhostVisual>(_playerPrefab, "Player");
-            _playerPrefab.GetComponent<WeaponMount>().Validate();
-            ValidatePrefab<Character>(_enemyPrefab, "Enemy");
-            ValidatePrefab<Rigidbody>(_enemyPrefab, "Enemy");
-            ValidatePrefab<UnityEngine.AI.NavMeshAgent>(_enemyPrefab, "Enemy");
-            ValidatePrefab<ContactDamage>(_enemyPrefab, "Enemy");
-            ValidateChildPrefab<GhostVisual>(_enemyPrefab, "Enemy");
-            ValidatePrefab<Projectile>(_projectilePrefab, "Projectile");
             GameplaySettings gameplay = _config.CreateSettings();
-            GhostVisualSettings playerVisual = _playerPrefab
-                .GetComponentInChildren<GhostVisual>(true)
-                .CreateSettings();
-            GhostVisualSettings enemyVisual = _enemyPrefab
-                .GetComponentInChildren<GhostVisual>(true)
-                .CreateSettings();
+            GhostVisual playerVisualComponent = _playerPrefab.GetComponentInChildren<GhostVisual>(true);
+            GhostVisual enemyVisualComponent = _enemyPrefab.GetComponentInChildren<GhostVisual>(true);
+
+            if (playerVisualComponent == null || enemyVisualComponent == null)
+            {
+                string missingPrefab = playerVisualComponent == null ? _playerPrefab.name : _enemyPrefab.name;
+                throw new InvalidOperationException(missingPrefab + " prefab has no GhostVisual component.");
+            }
+
+            GhostVisualSettings playerVisual = playerVisualComponent.CreateSettings();
+            GhostVisualSettings enemyVisual = enemyVisualComponent.CreateSettings();
             return new SessionConfiguration(gameplay, playerVisual, enemyVisual);
         }
 
@@ -159,25 +129,6 @@ namespace GhostArena
             }
         }
 
-        private static void ValidatePrefab<T>(GameObject prefab, string prefabName)
-            where T : Component
-        {
-            if (prefab.GetComponent<T>() == null)
-            {
-                throw new InvalidOperationException(
-                    prefabName + " prefab has no " + typeof(T).Name + " component.");
-            }
-        }
-
-        private static void ValidateChildPrefab<T>(GameObject prefab, string prefabName)
-            where T : Component
-        {
-            if (prefab.GetComponentInChildren<T>(true) == null)
-            {
-                throw new InvalidOperationException(
-                    prefabName + " prefab has no " + typeof(T).Name + " component.");
-            }
-        }
     }
 
     public readonly struct SessionConfiguration

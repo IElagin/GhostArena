@@ -19,6 +19,7 @@ namespace GhostArena
             }
 
             _agent.speed = movementSpeed;
+            // NavMeshAgent does not serialize these update flags; rotation is handled separately.
             _agent.updatePosition = true;
             _agent.updateRotation = false;
             _agent.isStopped = true;

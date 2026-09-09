@@ -47,10 +47,6 @@ namespace GhostArena
             _minimumDistanceSquared = minimumDistance * minimumDistance;
         }
 
-        public event Action DestinationChanged;
-
-        public Vector3 Destination { get; private set; }
-
         public override void Disable()
         {
             base.Disable();
@@ -94,8 +90,6 @@ namespace GhostArena
                     continue;
                 }
 
-                Destination = hit.position;
-                DestinationChanged?.Invoke();
                 break;
             }
 

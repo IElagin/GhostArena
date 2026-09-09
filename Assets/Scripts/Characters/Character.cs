@@ -3,15 +3,13 @@ using UnityEngine;
 
 namespace GhostArena
 {
-    public sealed class Character : MonoBehaviour, IDisposable
+    public sealed class Character : MonoBehaviour, IDamageable, IDisposable
     {
         private Controller _controller;
         private bool _isDisposed;
         private bool _isInitialized;
 
         public event Action<Character> Died;
-
-        public CharacterRole Role { get; private set; }
 
         public Health Health { get; private set; }
 
@@ -25,14 +23,9 @@ namespace GhostArena
 
         public Controller Controller => _controller;
 
-        public Vector3 Position => transform.position;
-
         public bool IsGameplayActive => _controller != null && _controller.IsEnabled;
 
-        public bool CanReceiveDamage => IsGameplayActive && Health != null && Health.IsAlive;
-
         public void Initialize(
-            CharacterRole role,
             Health health,
             IDirectionalMover directionalMover,
             IDestinationMover destinationMover,
@@ -48,7 +41,6 @@ namespace GhostArena
                 throw new ArgumentException("Character needs a movement mechanic.");
             }
 
-            Role = role;
             Health = health ?? throw new ArgumentNullException(nameof(health));
             DirectionalMover = directionalMover;
             DestinationMover = destinationMover;
@@ -96,6 +88,17 @@ namespace GhostArena
             DestinationMover?.Stop();
         }
 
+        public bool TryTakeDamage(int damage)
+        {
+            if (IsGameplayActive == false || Health == null || Health.IsAlive == false)
+            {
+                return false;
+            }
+
+            Health.TakeDamage(damage);
+            return true;
+        }
+
         public void Dispose()
         {
             if (_isDisposed)
@@ -125,11 +128,5 @@ namespace GhostArena
             SetGameplayActive(false);
             Died?.Invoke(this);
         }
-    }
-
-    public enum CharacterRole
-    {
-        Player,
-        Enemy
     }
 }

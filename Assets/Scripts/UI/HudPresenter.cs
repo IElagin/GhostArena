@@ -35,8 +35,6 @@ namespace GhostArena
         private Button _resultRestartButton;
         private Button _fallenRestartButton;
 
-        public GameSession BoundSession => _session;
-
         public void Bind(GameMode gameMode)
         {
             if (gameMode == null)

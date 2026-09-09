@@ -57,8 +57,6 @@ namespace GhostArena
             _visualSettings = visualSettings;
         }
 
-        public float SpawnInterval => _spawnInterval;
-
         public void SetGameplayActive(bool isActive)
         {
             _isGameplayActive = isActive && _isDisposed == false;

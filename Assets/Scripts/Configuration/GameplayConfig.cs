@@ -44,36 +44,6 @@ namespace GhostArena
         [Tooltip("Seconds before an unconsumed projectile is removed.")]
         [SerializeField] private float _projectileLifetime = 2f;
 
-        public WinRule WinRule => _winRule;
-
-        public float SurviveDuration => _surviveDuration;
-
-        public int KillTarget => _killTarget;
-
-        public LoseRule LoseRule => _loseRule;
-
-        public int TotalSpawnsLimit => _totalSpawnsLimit;
-
-        public int PlayerMaximumHealth => _playerMaximumHealth;
-
-        public float PlayerMovementSpeed => _playerMovementSpeed;
-
-        public int EnemyMaximumHealth => _enemyMaximumHealth;
-
-        public float EnemyMovementSpeed => _enemyMovementSpeed;
-
-        public float EnemyDirectionInterval => _enemyDirectionInterval;
-
-        public int ContactDamage => _contactDamage;
-
-        public float SpawnInterval => _spawnInterval;
-
-        public float ProjectileMovementSpeed => _projectileMovementSpeed;
-
-        public int ProjectileDamage => _projectileDamage;
-
-        public float ProjectileLifetime => _projectileLifetime;
-
         public GameplaySettings CreateSettings()
         {
             Validate();
@@ -98,7 +68,7 @@ namespace GhostArena
                     _projectileLifetime));
         }
 
-        public void Validate()
+        private void Validate()
         {
             if (Enum.IsDefined(typeof(WinRule), _winRule) == false)
             {

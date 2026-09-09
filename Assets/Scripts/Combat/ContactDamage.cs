@@ -5,19 +5,14 @@ namespace GhostArena
 {
     public sealed class ContactDamage : MonoBehaviour
     {
-        private readonly Dictionary<Character, int> _targetContacts =
-            new Dictionary<Character, int>();
+        [SerializeField] private LayerMask _damageLayers = ~0;
+
+        private readonly Dictionary<Collider, Contact> _contacts = new Dictionary<Collider, Contact>();
         private Character _owner;
-        private ITargetDamagePolicy _targetPolicy;
         private int _damage;
         private bool _isInitialized;
 
-        public int Damage => _damage;
-
-        public void Initialize(
-            Character owner,
-            int damage,
-            ITargetDamagePolicy targetPolicy)
+        public void Initialize(Character owner, int damage)
         {
             if (_isInitialized)
             {
@@ -29,53 +24,85 @@ namespace GhostArena
                 throw new System.ArgumentOutOfRangeException(nameof(damage));
             }
 
-            _owner = owner != null ? owner : throw new System.ArgumentNullException(nameof(owner));
-            _targetPolicy = targetPolicy
-                ?? throw new System.ArgumentNullException(nameof(targetPolicy));
+            _owner = owner;
             _damage = damage;
             _isInitialized = true;
         }
 
         private void OnCollisionEnter(Collision collision)
         {
-            Character target = collision.collider.GetComponentInParent<Character>();
+            Collider collider = collision.collider;
 
-            if (target == null || _isInitialized == false || _owner.IsGameplayActive == false
-                || _targetPolicy.CanDamage(_owner, target) == false)
+            if (_contacts.TryGetValue(collider, out Contact existingContact))
+            {
+                existingContact.PairCount++;
+                return;
+            }
+
+            if (_isInitialized == false || _owner.IsGameplayActive == false
+                || (_damageLayers.value & (1 << collider.gameObject.layer)) == 0)
             {
                 return;
             }
 
-            _targetContacts.TryGetValue(target, out int contactCount);
-            _targetContacts[target] = contactCount + 1;
+            IDamageable target = collider.GetComponentInParent<IDamageable>();
 
-            if (contactCount == 0 && target.CanReceiveDamage)
+            if (target == null)
             {
-                target.Health.TakeDamage(_damage);
+                return;
+            }
+
+            bool alreadyTouching = IsTouching(target);
+            _contacts.Add(collider, new Contact(target));
+
+            if (alreadyTouching == false)
+            {
+                target.TryTakeDamage(_damage);
             }
         }
 
         private void OnCollisionExit(Collision collision)
         {
-            Character target = collision.collider.GetComponentInParent<Character>();
-
-            if (target == null || _targetContacts.TryGetValue(target, out int contactCount) == false)
+            if (_contacts.TryGetValue(collision.collider, out Contact contact) == false)
             {
                 return;
             }
 
-            if (contactCount <= 1)
+            contact.PairCount--;
+
+            if (contact.PairCount == 0)
             {
-                _targetContacts.Remove(target);
-                return;
+                _contacts.Remove(collision.collider);
+            }
+        }
+
+        private bool IsTouching(IDamageable target)
+        {
+            foreach (Contact contact in _contacts.Values)
+            {
+                if (ReferenceEquals(contact.Target, target))
+                {
+                    return true;
+                }
             }
 
-            _targetContacts[target] = contactCount - 1;
+            return false;
         }
 
         private void OnDisable()
         {
-            _targetContacts.Clear();
+            _contacts.Clear();
+        }
+
+        private sealed class Contact
+        {
+            public readonly IDamageable Target;
+            public int PairCount = 1;
+
+            public Contact(IDamageable target)
+            {
+                Target = target;
+            }
         }
     }
 }

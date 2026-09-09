@@ -6,31 +6,20 @@ namespace GhostArena
     public sealed class Projectile : MonoBehaviour
     {
         [SerializeField] private Rigidbody _body;
+        [SerializeField] private LayerMask _damageLayers = ~0;
 
-        private Character _owner;
-        private ITargetDamagePolicy _targetPolicy;
-        private float _movementSpeed;
+        private Transform _owner;
         private int _damage;
-        private float _lifetime;
         private float _timeRemaining;
         private bool _isConsumed;
         private bool _isInitialized;
 
-        public event Action<Projectile, Character> Hit;
-
-        public bool IsConsumed => _isConsumed;
-
-        public float MovementSpeed => _movementSpeed;
-
-        public int Damage => _damage;
-
-        public float Lifetime => _lifetime;
+        public event Action<Projectile, Vector3> Hit;
 
         public void Initialize(
             Vector3 direction,
-            Character owner,
-            ProjectileSettings settings,
-            ITargetDamagePolicy targetPolicy)
+            Transform owner,
+            ProjectileSettings settings)
         {
             if (_isInitialized)
             {
@@ -42,27 +31,12 @@ namespace GhostArena
                 throw new InvalidOperationException("Projectile rigidbody is not configured.");
             }
 
-            if (direction.sqrMagnitude <= 0f)
-            {
-                throw new ArgumentOutOfRangeException(nameof(direction));
-            }
-
-            if (settings.IsValid == false)
-            {
-                throw new ArgumentOutOfRangeException(nameof(settings));
-            }
-
-            _owner = owner != null ? owner : throw new ArgumentNullException(nameof(owner));
-            _targetPolicy = targetPolicy ?? throw new ArgumentNullException(nameof(targetPolicy));
-            _movementSpeed = settings.MovementSpeed;
+            _owner = owner;
             _damage = settings.Damage;
-            _lifetime = settings.Lifetime;
             _isInitialized = true;
-            _timeRemaining = _lifetime;
+            _timeRemaining = settings.Lifetime;
             transform.forward = direction.normalized;
-            _body.useGravity = false;
-            _body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-            _body.linearVelocity = transform.forward * _movementSpeed;
+            _body.linearVelocity = transform.forward * settings.MovementSpeed;
         }
 
         private void Update()
@@ -80,57 +54,47 @@ namespace GhostArena
             }
         }
 
-        private void OnCollisionEnter(Collision collision)
+        private void OnTriggerEnter(Collider other)
         {
             if (_isInitialized == false || _isConsumed)
             {
                 return;
             }
 
-            Transform collisionTransform = collision.collider.transform;
+            Transform collisionTransform = other.transform;
 
-            if (collisionTransform == _owner.transform || collisionTransform.IsChildOf(_owner.transform))
+            if (other.isTrigger || collisionTransform == _owner || collisionTransform.IsChildOf(_owner))
             {
                 return;
             }
 
-            Character target = collision.collider.GetComponentInParent<Character>();
+            IDamageable target = other.GetComponentInParent<IDamageable>();
 
             if (target != null)
             {
-                if (target.Health.IsAlive == false)
+                if (IsDamageLayer(other.gameObject.layer) == false)
                 {
-                    IgnoreDeadEnemy(collision.collider);
                     return;
                 }
 
-                if (_targetPolicy.CanDamage(_owner, target) == false)
+                Vector3 hitPosition = other.ClosestPoint(transform.position);
+
+                if (target.TryTakeDamage(_damage) == false)
                 {
-                    Consume();
                     return;
                 }
 
-                _isConsumed = true;
-                _body.linearVelocity = Vector3.zero;
-                target.Health.TakeDamage(_damage);
-                Hit?.Invoke(this, target);
-                Destroy(gameObject);
+                Consume();
+                Hit?.Invoke(this, hitPosition);
                 return;
             }
 
             Consume();
         }
 
-        private void IgnoreDeadEnemy(Collider enemyCollider)
+        private bool IsDamageLayer(int layer)
         {
-            Collider projectileCollider = GetComponent<Collider>();
-
-            if (projectileCollider != null)
-            {
-                Physics.IgnoreCollision(projectileCollider, enemyCollider, true);
-            }
-
-            _body.linearVelocity = transform.forward * _movementSpeed;
+            return (_damageLayers.value & (1 << layer)) != 0;
         }
 
         private void Consume()

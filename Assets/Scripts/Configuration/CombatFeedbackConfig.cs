@@ -64,54 +64,6 @@ namespace GhostArena
         [ColorUsage(true, true)]
         [SerializeField] private Color _playerFlashEmission = new Color(1.1f, 0.18f, 0.12f, 1f);
 
-        public AudioClip ShotClip => _shotClip;
-
-        public AudioClip EnemyHitClip => _enemyHitClip;
-
-        public AudioClip EnemyDeathClip => _enemyDeathClip;
-
-        public AudioClip PlayerHurtClip => _playerHurtClip;
-
-        public AudioClip SpawnClip => _spawnClip;
-
-        public AudioClip VictoryClip => _victoryClip;
-
-        public AudioClip DefeatClip => _defeatClip;
-
-        public float ShotGain => _shotGain;
-
-        public float EnemyHitGain => _enemyHitGain;
-
-        public float EnemyDeathGain => _enemyDeathGain;
-
-        public float PlayerHurtGain => _playerHurtGain;
-
-        public float SpawnGain => _spawnGain;
-
-        public float VictoryGain => _victoryGain;
-
-        public float DefeatGain => _defeatGain;
-
-        public float SfxSourceGain => _sfxSourceGain;
-
-        public float ResultSourceGain => _resultSourceGain;
-
-        public ParticleSystem SpawnEffectPrefab => _spawnEffectPrefab;
-
-        public ParticleSystem HitEffectPrefab => _hitEffectPrefab;
-
-        public ParticleSystem DeathEffectPrefab => _deathEffectPrefab;
-
-        public float FlashDuration => _flashDuration;
-
-        public Color EnemyFlashColor => _enemyFlashColor;
-
-        public Color EnemyFlashEmission => _enemyFlashEmission;
-
-        public Color PlayerFlashColor => _playerFlashColor;
-
-        public Color PlayerFlashEmission => _playerFlashEmission;
-
         public CombatFeedbackSettings CreateSettings()
         {
             Validate();
@@ -143,7 +95,7 @@ namespace GhostArena
                 _playerFlashEmission);
         }
 
-        public void Validate()
+        private void Validate()
         {
             if (_shotClip == null || _enemyHitClip == null || _enemyDeathClip == null
                 || _playerHurtClip == null || _spawnClip == null

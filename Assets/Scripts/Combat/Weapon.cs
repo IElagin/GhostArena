@@ -10,7 +10,6 @@ namespace GhostArena
         private readonly GameObject _projectilePrefab;
         private readonly Transform _runtimeRoot;
         private readonly ProjectileSettings _settings;
-        private readonly ITargetDamagePolicy _targetPolicy;
         private bool _isDisposed;
 
         public Weapon(
@@ -18,17 +17,12 @@ namespace GhostArena
             Transform muzzle,
             GameObject projectilePrefab,
             Transform runtimeRoot,
-            ProjectileSettings settings,
-            ITargetDamagePolicy targetPolicy)
+            ProjectileSettings settings)
         {
-            _owner = owner != null ? owner : throw new ArgumentNullException(nameof(owner));
-            _muzzle = muzzle != null ? muzzle : throw new ArgumentNullException(nameof(muzzle));
-            _projectilePrefab = projectilePrefab != null
-                ? projectilePrefab
-                : throw new ArgumentNullException(nameof(projectilePrefab));
-            _runtimeRoot = runtimeRoot != null
-                ? runtimeRoot
-                : throw new ArgumentNullException(nameof(runtimeRoot));
+            _owner = owner;
+            _muzzle = muzzle;
+            _projectilePrefab = projectilePrefab;
+            _runtimeRoot = runtimeRoot;
 
             if (settings.IsValid == false)
             {
@@ -36,12 +30,9 @@ namespace GhostArena
             }
 
             _settings = settings;
-            _targetPolicy = targetPolicy ?? throw new ArgumentNullException(nameof(targetPolicy));
         }
 
         public event Action<Projectile> Shot;
-
-        public int ShotsFired { get; private set; }
 
         public bool TryFire()
         {
@@ -63,8 +54,7 @@ namespace GhostArena
                 throw new InvalidOperationException("Projectile prefab has no Projectile component.");
             }
 
-            projectile.Initialize(_muzzle.forward, _owner, _settings, _targetPolicy);
-            ShotsFired++;
+            projectile.Initialize(_muzzle.forward, _owner.transform, _settings);
             Shot?.Invoke(projectile);
             return true;
         }

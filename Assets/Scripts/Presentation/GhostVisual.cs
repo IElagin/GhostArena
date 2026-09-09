@@ -14,12 +14,6 @@ namespace GhostArena
         private float _elapsed;
         private bool _isInitialized;
 
-        public Transform Visual => _visual;
-
-        public GhostVisualConfig Config => _config;
-
-        public GhostVisualSettings Settings => _settings;
-
         public GhostVisualSettings CreateSettings()
         {
             if (_config == null)

@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 
 namespace GhostArena
@@ -8,13 +7,5 @@ namespace GhostArena
         [SerializeField] private Transform _muzzle;
 
         public Transform Muzzle => _muzzle;
-
-        public void Validate()
-        {
-            if (_muzzle == null)
-            {
-                throw new InvalidOperationException("Weapon muzzle is not configured.");
-            }
-        }
     }
 }

@@ -9,8 +9,6 @@ namespace GhostArena
         private readonly HashSet<Controller> _registrations = new HashSet<Controller>();
         private bool _isDisposed;
 
-        public int Count => _registrations.Count;
-
         public bool Add(Controller controller)
         {
             ThrowIfDisposed();

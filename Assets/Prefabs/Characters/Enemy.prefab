@@ -111,6 +111,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 64696db16731246f69a418bfb50485b3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GhostArena.ContactDamage
+  _damageLayers:
+    serializedVersion: 2
+    m_Bits: 256
 --- !u!195 &6824165735601507289
 NavMeshAgent:
   m_ObjectHideFlags: 0
