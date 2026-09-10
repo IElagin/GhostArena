@@ -36,8 +36,9 @@ namespace GhostArena
                 return;
             }
 
-            Vector3 offset = CurrentVelocity * fixedDeltaTime;
-            _body.MovePosition(_body.position + offset);
+            Vector3 velocity = CurrentVelocity;
+            velocity.y = _body.linearVelocity.y;
+            _body.linearVelocity = velocity;
         }
 
         public void Stop()

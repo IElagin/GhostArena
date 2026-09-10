@@ -9,7 +9,7 @@ namespace GhostArena
     public enum LoseRule
     {
         PlayerDeath,
-        TotalSpawnsExceeded
+        AliveEnemiesExceeded
     }
 
     public enum GameState

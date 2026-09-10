@@ -19,18 +19,13 @@
                         <ui:Label name="time-label" text="ВРЕМЯ  00:00" class="stat-label" picking-mode="Ignore" />
                         <ui:Label name="kills-label" text="ДУХИ  0" class="stat-label stat-accent" picking-mode="Ignore" />
                     </ui:VisualElement>
-                    <ui:Label name="spawns-label" text="ПОЯВИЛОСЬ  0    ПРЕДЕЛ  25" class="spawn-label" picking-mode="Ignore" />
+                    <ui:Label name="spawns-label" text="НА АРЕНЕ  0    ПРЕДЕЛ  25" class="spawn-label" picking-mode="Ignore" />
                 </ui:VisualElement>
             </ui:VisualElement>
             <ui:Button name="pause-button" text="ПАУЗА" class="utility-button pause-button" />
             <ui:Label name="control-hints" text="WASD / СТРЕЛКИ  •  ДВИЖЕНИЕ     SPACE  •  ВЫСТРЕЛ     ESC  •  ПАУЗА" class="control-hints" picking-mode="Ignore" />
         </ui:VisualElement>
 
-        <ui:VisualElement name="fallen-card" class="fallen-card" picking-mode="Position">
-            <ui:Label text="ГЕРОЙ ПОГАС" class="fallen-title" picking-mode="Ignore" />
-            <ui:Label name="fallen-reason-label" text="Матч продолжается до выбранного условия." class="fallen-reason" picking-mode="Ignore" />
-            <ui:Button name="fallen-restart-button" text="ЗАНОВО" class="button button--small" />
-        </ui:VisualElement>
 
         <ui:VisualElement name="pause-overlay" class="blocking-overlay" picking-mode="Position">
             <ui:VisualElement class="modal-card pause-card" picking-mode="Position">

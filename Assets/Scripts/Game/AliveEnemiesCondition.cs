@@ -2,14 +2,14 @@ using System;
 
 namespace GhostArena
 {
-    public sealed class TotalSpawnsCondition : IGameCondition
+    public sealed class AliveEnemiesCondition : IGameCondition
     {
         private readonly SessionStats _stats;
         private readonly int _limit;
         private bool _isStarted;
         private bool _isDisposed;
 
-        public TotalSpawnsCondition(SessionStats stats, int limit)
+        public AliveEnemiesCondition(SessionStats stats, int limit)
         {
             _stats = stats ?? throw new ArgumentNullException(nameof(stats));
 
@@ -66,7 +66,7 @@ namespace GhostArena
 
         private void Evaluate()
         {
-            if (IsSatisfied || _stats.TotalSpawned <= _limit)
+            if (IsSatisfied || _stats.AliveCount <= _limit)
             {
                 return;
             }
@@ -79,7 +79,7 @@ namespace GhostArena
         {
             if (_isDisposed)
             {
-                throw new ObjectDisposedException(nameof(TotalSpawnsCondition));
+                throw new ObjectDisposedException(nameof(AliveEnemiesCondition));
             }
         }
     }

@@ -28,15 +28,15 @@ namespace GhostArena
             LoseRule rule,
             SessionStats stats,
             Health health,
-            int totalSpawnsLimit)
+            int enemyLimit)
         {
             switch (rule)
             {
                 case LoseRule.PlayerDeath:
                     return new PlayerDeathCondition(health);
 
-                case LoseRule.TotalSpawnsExceeded:
-                    return new TotalSpawnsCondition(stats, totalSpawnsLimit);
+                case LoseRule.AliveEnemiesExceeded:
+                    return new AliveEnemiesCondition(stats, enemyLimit);
 
                 default:
                     throw new ArgumentOutOfRangeException(nameof(rule), rule, "Unknown lose rule.");

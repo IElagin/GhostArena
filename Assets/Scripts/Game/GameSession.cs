@@ -4,6 +4,7 @@ namespace GhostArena
 {
     public sealed class GameSession : IDisposable
     {
+        private readonly Health _playerHealth;
         private readonly IGameCondition _winCondition;
         private readonly IGameCondition _loseCondition;
         private bool _hasPendingResolution;
@@ -13,8 +14,10 @@ namespace GhostArena
         public GameSession(
             SessionStats stats,
             IGameCondition winCondition,
-            IGameCondition loseCondition)
+            IGameCondition loseCondition,
+            Health playerHealth)
         {
+            _playerHealth = playerHealth ?? throw new ArgumentNullException(nameof(playerHealth));
             Stats = stats ?? throw new ArgumentNullException(nameof(stats));
             _winCondition = winCondition ?? throw new ArgumentNullException(nameof(winCondition));
             _loseCondition = loseCondition ?? throw new ArgumentNullException(nameof(loseCondition));
@@ -43,6 +46,11 @@ namespace GhostArena
             _winCondition.Start();
             _loseCondition.Start();
             SetState(GameState.Running);
+
+            if (_playerHealth.IsAlive == false)
+            {
+                OnPlayerDied();
+            }
         }
 
         public void Tick(float deltaTime)
@@ -113,6 +121,7 @@ namespace GhostArena
 
         private void Subscribe()
         {
+            _playerHealth.Died += OnPlayerDied;
             _winCondition.Satisfied += OnConditionSatisfied;
             _loseCondition.Satisfied += OnConditionSatisfied;
             _isSubscribed = true;
@@ -125,9 +134,18 @@ namespace GhostArena
                 return;
             }
 
+            _playerHealth.Died -= OnPlayerDied;
             _winCondition.Satisfied -= OnConditionSatisfied;
             _loseCondition.Satisfied -= OnConditionSatisfied;
             _isSubscribed = false;
+        }
+
+        private void OnPlayerDied()
+        {
+            if (_isDisposed == false && (State == GameState.Running || State == GameState.Paused))
+            {
+                Finish(GameResult.Defeat);
+            }
         }
 
         private void OnConditionSatisfied()

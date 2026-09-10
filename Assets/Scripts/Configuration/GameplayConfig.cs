@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace GhostArena
 {
@@ -13,10 +14,11 @@ namespace GhostArena
         [SerializeField] private float _surviveDuration = 60f;
         [Tooltip("Kills required by the Kill Enemies rule.")]
         [SerializeField] private int _killTarget = 10;
-        [Tooltip("Condition used to lose the match.")]
+        [Tooltip("Additional loss rule. Player death always ends the match immediately.")]
         [SerializeField] private LoseRule _loseRule = LoseRule.PlayerDeath;
-        [Tooltip("The Total Spawns rule loses only after this value is exceeded.")]
-        [SerializeField] private int _totalSpawnsLimit = 25;
+        [Tooltip("The Alive Enemies rule loses when the number of living enemies exceeds this limit.")]
+        [FormerlySerializedAs("_totalSpawnsLimit")]
+        [SerializeField] private int _enemyLimit = 25;
 
         [Header("Player")]
         [Tooltip("Player health at the start of each session.")]
@@ -53,7 +55,7 @@ namespace GhostArena
                 _surviveDuration,
                 _killTarget,
                 _loseRule,
-                _totalSpawnsLimit,
+                _enemyLimit,
                 _playerMaximumHealth,
                 _playerMovementSpeed,
                 new EnemySettings(
@@ -82,7 +84,7 @@ namespace GhostArena
 
             ValidatePositiveFinite(_surviveDuration, "Survive duration");
             ValidatePositive(_killTarget, "Kill target");
-            ValidatePositive(_totalSpawnsLimit, "Total spawns limit");
+            ValidatePositive(_enemyLimit, "Alive enemy limit");
             ValidatePositive(_playerMaximumHealth, "Player maximum health");
             ValidatePositiveFinite(_playerMovementSpeed, "Player movement speed");
             ValidatePositive(_enemyMaximumHealth, "Enemy maximum health");
@@ -119,7 +121,7 @@ namespace GhostArena
             float surviveDuration,
             int killTarget,
             LoseRule loseRule,
-            int totalSpawnsLimit,
+            int enemyLimit,
             int playerMaximumHealth,
             float playerMovementSpeed,
             EnemySettings enemy,
@@ -130,7 +132,7 @@ namespace GhostArena
             SurviveDuration = surviveDuration;
             KillTarget = killTarget;
             LoseRule = loseRule;
-            TotalSpawnsLimit = totalSpawnsLimit;
+            EnemyLimit = enemyLimit;
             PlayerMaximumHealth = playerMaximumHealth;
             PlayerMovementSpeed = playerMovementSpeed;
             Enemy = enemy;
@@ -146,7 +148,7 @@ namespace GhostArena
 
         public LoseRule LoseRule { get; }
 
-        public int TotalSpawnsLimit { get; }
+        public int EnemyLimit { get; }
 
         public int PlayerMaximumHealth { get; }
 

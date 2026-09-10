@@ -53,8 +53,8 @@ namespace GhostArena
                     settings.LoseRule,
                     stats,
                     player.Health,
-                    settings.TotalSpawnsLimit);
-                session = new GameSession(stats, winCondition, loseCondition);
+                    settings.EnemyLimit);
+                session = new GameSession(stats, winCondition, loseCondition, player.Health);
                 spawner = new EnemySpawner(
                     charactersFactory,
                     _arenaScene.EnemySpawnPoints,

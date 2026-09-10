@@ -195,43 +195,6 @@
     -unity-text-align: middle-center;
 }
 
-.fallen-card {
-    display: none;
-    position: absolute;
-    left: 28px;
-    bottom: 65px;
-    width: 330px;
-    padding: 12px 14px 12px 14px;
-    background-color: rgba(40, 22, 27, 0.95);
-    border-top-width: 1px;
-    border-right-width: 1px;
-    border-bottom-width: 1px;
-    border-left-width: 3px;
-    border-top-color: rgba(255, 137, 125, 0.55);
-    border-right-color: rgba(255, 137, 125, 0.55);
-    border-bottom-color: rgba(255, 137, 125, 0.55);
-    border-left-color: rgb(255, 137, 125);
-    border-top-left-radius: 7px;
-    border-top-right-radius: 7px;
-    border-bottom-left-radius: 7px;
-    border-bottom-right-radius: 7px;
-}
-
-.fallen-title {
-    color: rgb(255, 151, 140);
-    font-size: 15px;
-    -unity-font-style: bold;
-    letter-spacing: 0.7px;
-}
-
-.fallen-reason {
-    color: rgb(241, 244, 238);
-    font-size: 12px;
-    white-space: normal;
-    margin-top: 4px;
-    margin-bottom: 9px;
-}
-
 .blocking-overlay {
     display: none;
     position: absolute;

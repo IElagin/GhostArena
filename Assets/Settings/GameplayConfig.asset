@@ -16,7 +16,7 @@ MonoBehaviour:
   _surviveDuration: 60
   _killTarget: 10
   _loseRule: 1
-  _totalSpawnsLimit: 25
+  _enemyLimit: 25
   _playerMaximumHealth: 3
   _playerMovementSpeed: 5
   _enemyMaximumHealth: 2

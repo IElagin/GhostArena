@@ -19,7 +19,6 @@ namespace GhostArena
         private VisualElement _healthRow;
         private VisualElement _pauseOverlay;
         private VisualElement _resultOverlay;
-        private VisualElement _fallenCard;
         private Label _objectiveLabel;
         private Label _timeLabel;
         private Label _killsLabel;
@@ -28,12 +27,10 @@ namespace GhostArena
         private Label _resultHeadingLabel;
         private Label _resultReasonLabel;
         private Label _resultStatsLabel;
-        private Label _fallenReasonLabel;
         private Button _pauseButton;
         private Button _resumeButton;
         private Button _pauseRestartButton;
         private Button _resultRestartButton;
-        private Button _fallenRestartButton;
 
         public void Bind(GameMode gameMode)
         {
@@ -93,7 +90,6 @@ namespace GhostArena
             _healthRow = RequireElement<VisualElement>(root, "health-row");
             _pauseOverlay = RequireElement<VisualElement>(root, "pause-overlay");
             _resultOverlay = RequireElement<VisualElement>(root, "result-overlay");
-            _fallenCard = RequireElement<VisualElement>(root, "fallen-card");
             _objectiveLabel = RequireElement<Label>(root, "objective-label");
             _timeLabel = RequireElement<Label>(root, "time-label");
             _killsLabel = RequireElement<Label>(root, "kills-label");
@@ -102,12 +98,10 @@ namespace GhostArena
             _resultHeadingLabel = RequireElement<Label>(root, "result-heading-label");
             _resultReasonLabel = RequireElement<Label>(root, "result-reason-label");
             _resultStatsLabel = RequireElement<Label>(root, "result-stats-label");
-            _fallenReasonLabel = RequireElement<Label>(root, "fallen-reason-label");
             _pauseButton = RequireElement<Button>(root, "pause-button");
             _resumeButton = RequireElement<Button>(root, "resume-button");
             _pauseRestartButton = RequireElement<Button>(root, "pause-restart-button");
             _resultRestartButton = RequireElement<Button>(root, "result-restart-button");
-            _fallenRestartButton = RequireElement<Button>(root, "fallen-restart-button");
         }
 
         private void SubscribeButtons()
@@ -116,7 +110,6 @@ namespace GhostArena
             _resumeButton.clicked += OnResumeClicked;
             _pauseRestartButton.clicked += OnRestartClicked;
             _resultRestartButton.clicked += OnRestartClicked;
-            _fallenRestartButton.clicked += OnRestartClicked;
         }
 
         private void UnsubscribeButtons()
@@ -130,7 +123,6 @@ namespace GhostArena
             _resumeButton.clicked -= OnResumeClicked;
             _pauseRestartButton.clicked -= OnRestartClicked;
             _resultRestartButton.clicked -= OnRestartClicked;
-            _fallenRestartButton.clicked -= OnRestartClicked;
         }
 
         private void RebindSession()
@@ -235,9 +227,9 @@ namespace GhostArena
             string formattedTime = FormatTime(_stats.Elapsed);
             _timeLabel.text = "ВРЕМЯ  " + formattedTime;
             _killsLabel.text = "ДУХИ  " + _stats.Kills;
-            bool showSpawns = _settings.LoseRule == LoseRule.TotalSpawnsExceeded;
-            _spawnsLabel.text = "ПОЯВИЛОСЬ  " + _stats.TotalSpawned
-                + "    ПРЕДЕЛ  " + _settings.TotalSpawnsLimit;
+            bool showSpawns = _settings.LoseRule == LoseRule.AliveEnemiesExceeded;
+            _spawnsLabel.text = "НА АРЕНЕ  " + _stats.AliveCount
+                + "    ПРЕДЕЛ  " + _settings.EnemyLimit;
             SetVisible(_spawnsLabel, showSpawns);
             string summary = "Время " + formattedTime + "   •   Духов побеждено " + _stats.Kills;
             _pauseStatsLabel.text = summary;
@@ -254,12 +246,8 @@ namespace GhostArena
 
             bool isPaused = _session.State == GameState.Paused;
             bool isFinished = _session.State == GameState.Finished;
-            bool isFallenRunning = _session.State == GameState.Running
-                && _settings.LoseRule == LoseRule.TotalSpawnsExceeded
-                && _playerHealth.IsAlive == false;
             SetVisible(_pauseOverlay, isPaused);
             SetVisible(_resultOverlay, isFinished);
-            SetVisible(_fallenCard, isFallenRunning);
 
             if (isPaused)
             {
@@ -269,11 +257,6 @@ namespace GhostArena
             {
                 RefreshResult();
                 _resultRestartButton.Focus();
-            }
-            else if (isFallenRunning)
-            {
-                RefreshFallenReason();
-                _fallenRestartButton.Focus();
             }
             else
             {
@@ -302,37 +285,19 @@ namespace GhostArena
 
         private string GetDefeatReason()
         {
-            if (_settings.LoseRule == LoseRule.PlayerDeath)
+            if (_playerHealth.IsAlive == false)
             {
                 return "Герой погас в призрачной тьме.";
             }
 
-            int losingSpawn = _settings.TotalSpawnsLimit + 1;
-            return "Появился " + losingSpawn + "-й дух — предел "
-                + _settings.TotalSpawnsLimit + " превышен.";
-        }
-
-        private void RefreshFallenReason()
-        {
-            int losingSpawn = _settings.TotalSpawnsLimit + 1;
-
-            if (_settings.WinRule == WinRule.KillEnemies)
-            {
-                _fallenReasonLabel.text = "Матч продолжается: победа — "
-                    + _settings.KillTarget + " духов, поражение — появление "
-                    + losingSpawn + "-го духа.";
-                return;
-            }
-
-            _fallenReasonLabel.text = "Матч продолжается до появления "
-                + losingSpawn + "-го духа.";
+            return "Был превышен предел живых духов на арене: "
+                + _settings.EnemyLimit + ".";
         }
 
         private void HideAllCards()
         {
             SetVisible(_pauseOverlay, false);
             SetVisible(_resultOverlay, false);
-            SetVisible(_fallenCard, false);
         }
 
         private void ClearButtonFocus()
@@ -341,7 +306,6 @@ namespace GhostArena
             _resumeButton.Blur();
             _pauseRestartButton.Blur();
             _resultRestartButton.Blur();
-            _fallenRestartButton.Blur();
         }
 
         private void OnMatchChanged()
