@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 073f0f468e6fe484fbe39303f6c79032, type: 3}
+  m_Name: GameConfig
+  m_EditorClassIdentifier: Assembly-CSharp::GhostArena.GameConfig
+  _gameplay: {fileID: 11400000, guid: 0c500dd1d6c72469992d83bf7c769576, type: 2}
+  _playerPrefab: {fileID: 4853446602475246186, guid: 87671e35acf70479ba3b1b538fcdee3e, type: 3}
+  _enemyPrefab: {fileID: 1312004891444792460, guid: 5ea3883196b3e441a9405e66c085ad23, type: 3}
+  _projectilePrefab: {fileID: 5937920869235662331, guid: dcf2e202c361a4510bd0c2723857f567, type: 3}

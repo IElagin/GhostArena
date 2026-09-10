@@ -150,7 +150,9 @@ namespace GhostArena
                 SubscribeEnemy(enemy);
             }
 
-            _audioPlayer.SetPaused(_session.State == GameState.Paused);
+            bool isPaused = _session.State == GameState.Paused;
+            _audioPlayer.SetPaused(isPaused);
+            SetCharacterAnimationsPaused(isPaused);
         }
 
         private void UnbindSession()
@@ -245,7 +247,25 @@ namespace GhostArena
 
         private void OnSessionStateChanged()
         {
-            _audioPlayer.SetPaused(_session != null && _session.State == GameState.Paused);
+            bool isPaused = _session != null && _session.State == GameState.Paused;
+            _audioPlayer.SetPaused(isPaused);
+            SetCharacterAnimationsPaused(isPaused);
+        }
+
+        private void SetCharacterAnimationsPaused(bool isPaused)
+        {
+            if (_player == null || _player.transform.parent == null)
+            {
+                return;
+            }
+
+            CharacterAnimation[] animations =
+                _player.transform.parent.GetComponentsInChildren<CharacterAnimation>(true);
+
+            foreach (CharacterAnimation animation in animations)
+            {
+                animation.SetPaused(isPaused);
+            }
         }
 
         private void OnSessionEnded(GameResult result)

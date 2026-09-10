@@ -6277,6 +6277,7 @@ GameObject:
   - component: {fileID: 2002979162}
   - component: {fileID: 2002979161}
   - component: {fileID: 2002979163}
+  - component: {fileID: 2002979164}
   m_Layer: 0
   m_Name: Game Bootstrap
   m_TagString: Untagged
@@ -6296,18 +6297,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 691293cd8b53046df9ef999c61c5c2a2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GhostArena.GameBootstrap
-  _config: {fileID: 11400000, guid: 0c500dd1d6c72469992d83bf7c769576, type: 2}
-  _playerPrefab: {fileID: 4853446602475246186, guid: 87671e35acf70479ba3b1b538fcdee3e, type: 3}
-  _enemyPrefab: {fileID: 1312004891444792460, guid: 5ea3883196b3e441a9405e66c085ad23, type: 3}
-  _projectilePrefab: {fileID: 5937920869235662331, guid: dcf2e202c361a4510bd0c2723857f567, type: 3}
-  _playerSpawn: {fileID: 1637695775}
-  _enemySpawns:
-  - {fileID: 1724324890}
-  - {fileID: 151125417}
-  - {fileID: 1078509506}
-  - {fileID: 2080343108}
-  _gameplayCamera: {fileID: 1019080287}
-  _arenaHalfExtents: {x: 8.3, y: 6.3}
+  _config: {fileID: 11400000, guid: eb263ba39bcc44494954ffccae407b28, type: 2}
+  _arenaScene: {fileID: 2002979164}
   _gameLoop: {fileID: 2002979163}
   _hudPresenter: {fileID: 1506977826}
   _combatFeedback: {fileID: 1506977825}
@@ -6338,6 +6329,26 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: db18f21935eb847658c78a7f5ae13122, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GhostArena.GameLoop
+--- !u!114 &2002979164
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2002979160}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f32782e78b7f548538fbe7ad2fb34f30, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GhostArena.ArenaScene
+  _playerSpawnPoint: {fileID: 1637695775}
+  _enemySpawnPoints:
+  - {fileID: 1724324890}
+  - {fileID: 151125417}
+  - {fileID: 1078509506}
+  - {fileID: 2080343108}
+  _gameplayCamera: {fileID: 1019080287}
+  _arenaHalfExtents: {x: 8.3, y: 6.3}
 --- !u!1 &2021606124
 GameObject:
   m_ObjectHideFlags: 0

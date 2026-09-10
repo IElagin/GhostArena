@@ -40,8 +40,8 @@ namespace GhostArena
             TearDownMatch();
             MatchChanged?.Invoke();
             Time.timeScale = 1f;
-            SessionConfiguration configuration = _matchFactory.CaptureConfiguration();
-            Current = _matchFactory.Create(configuration);
+            GameplaySettings settings = _matchFactory.CaptureConfiguration();
+            Current = _matchFactory.Create(settings);
             Current.Session.StateChanged += OnSessionStateChanged;
             Current.Session.Start();
             MatchChanged?.Invoke();

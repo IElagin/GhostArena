@@ -7,39 +7,31 @@ namespace GhostArena
 {
     public sealed class CharactersFactory
     {
-        private readonly ControllersFactory _controllersFactory;
-        private readonly ControllersUpdateService _controllers;
         private readonly GameObject _playerPrefab;
         private readonly GameObject _enemyPrefab;
         private readonly GameObject _projectilePrefab;
+        private readonly GameplaySettings _settings;
+        private readonly ArenaScene _arenaScene;
         private readonly Transform _runtimeRoot;
-        private readonly Camera _gameplayCamera;
-        private readonly Vector2 _arenaHalfExtents;
+        private readonly ControllersFactory _controllersFactory;
 
         public CharactersFactory(
-            ControllersFactory controllersFactory,
-            ControllersUpdateService controllers,
-            GameObject playerPrefab,
-            GameObject enemyPrefab,
-            GameObject projectilePrefab,
+            GameConfig config,
+            GameplaySettings settings,
+            ArenaScene arenaScene,
             Transform runtimeRoot,
-            Camera gameplayCamera,
-            Vector2 arenaHalfExtents)
+            ControllersFactory controllersFactory)
         {
-            _controllersFactory = controllersFactory;
-            _controllers = controllers;
-            _playerPrefab = playerPrefab;
-            _enemyPrefab = enemyPrefab;
-            _projectilePrefab = projectilePrefab;
+            _playerPrefab = config.PlayerPrefab;
+            _enemyPrefab = config.EnemyPrefab;
+            _projectilePrefab = config.ProjectilePrefab;
+            _settings = settings;
+            _arenaScene = arenaScene;
             _runtimeRoot = runtimeRoot;
-            _gameplayCamera = gameplayCamera;
-            _arenaHalfExtents = arenaHalfExtents;
+            _controllersFactory = controllersFactory;
         }
 
-        public Character CreatePlayer(
-            Transform spawnPoint,
-            GameplaySettings settings,
-            GhostVisualSettings visualSettings)
+        public Character CreatePlayer(Transform spawnPoint)
         {
             if (spawnPoint == null)
             {
@@ -52,14 +44,17 @@ namespace GhostArena
                 spawnPoint.rotation,
                 _runtimeRoot);
 
+            Character character = null;
+
             try
             {
-                Character character = characterObject.GetComponent<Character>();
+                character = characterObject.GetComponent<Character>();
                 Rigidbody body = characterObject.GetComponent<Rigidbody>();
                 WeaponMount weaponMount = characterObject.GetComponent<WeaponMount>();
-                GhostVisual visual = characterObject.GetComponentInChildren<GhostVisual>(true);
+                CharacterAnimation animation =
+                    characterObject.GetComponentInChildren<CharacterAnimation>(true);
 
-                if (character == null || body == null || weaponMount == null || visual == null)
+                if (character == null || body == null || weaponMount == null || animation == null)
                 {
                     throw new InvalidOperationException("Player prefab components are not configured.");
                 }
@@ -71,10 +66,10 @@ namespace GhostArena
 
                 RigidbodyDirectionalMover mover = new RigidbodyDirectionalMover(
                     body,
-                    settings.PlayerMovementSpeed);
+                    _settings.PlayerMovementSpeed);
                 RigidbodyDirectionalRotator rotator = new RigidbodyDirectionalRotator(body);
                 character.Initialize(
-                    new Health(settings.PlayerMaximumHealth),
+                    new Health(_settings.PlayerMaximumHealth),
                     mover,
                     null,
                     rotator);
@@ -83,25 +78,23 @@ namespace GhostArena
                     weaponMount.Muzzle,
                     _projectilePrefab,
                     _runtimeRoot,
-                    settings.Projectile);
+                    _settings.Projectile);
                 character.BindWeapon(weapon);
-                Controller controller = _controllersFactory.CreatePlayer(character, _gameplayCamera);
+                Controller controller = _controllersFactory.CreatePlayer(character, _arenaScene.GameplayCamera);
                 character.BindController(controller);
-                _controllers.Add(controller);
-                visual.Initialize(visualSettings);
+                animation.Initialize(character);
                 return character;
             }
             catch
             {
+                character?.Dispose();
+                characterObject.SetActive(false);
                 Object.Destroy(characterObject);
                 throw;
             }
         }
 
-        public Character CreateEnemy(
-            Transform spawnPoint,
-            EnemySettings settings,
-            GhostVisualSettings visualSettings)
+        public Character CreateEnemy(Transform spawnPoint)
         {
             if (spawnPoint == null)
             {
@@ -114,14 +107,17 @@ namespace GhostArena
                 spawnPoint.rotation,
                 _runtimeRoot);
 
+            Character character = null;
+
             try
             {
-                Character character = characterObject.GetComponent<Character>();
+                character = characterObject.GetComponent<Character>();
                 NavMeshAgent agent = characterObject.GetComponent<NavMeshAgent>();
                 ContactDamage contactDamage = characterObject.GetComponent<ContactDamage>();
-                GhostVisual visual = characterObject.GetComponentInChildren<GhostVisual>(true);
+                CharacterAnimation animation =
+                    characterObject.GetComponentInChildren<CharacterAnimation>(true);
 
-                if (character == null || agent == null || contactDamage == null || visual == null)
+                if (character == null || agent == null || contactDamage == null || animation == null)
                 {
                     throw new InvalidOperationException("Enemy prefab components are not configured.");
                 }
@@ -132,27 +128,28 @@ namespace GhostArena
                 }
 
                 float rotationSpeed = agent.angularSpeed;
-                AgentMover mover = new AgentMover(agent, settings.MovementSpeed);
+                AgentMover mover = new AgentMover(agent, _settings.Enemy.MovementSpeed);
                 TransformDirectionalRotator rotator =
                     new TransformDirectionalRotator(character.transform, rotationSpeed);
                 character.Initialize(
-                    new Health(settings.MaximumHealth),
+                    new Health(_settings.Enemy.MaximumHealth),
                     null,
                     mover,
                     rotator);
                 Controller controller = _controllersFactory.CreateEnemy(
                     character,
-                    _arenaHalfExtents,
-                    settings.DirectionInterval,
-                    settings.MovementSpeed * settings.DirectionInterval);
+                    _arenaScene.ArenaHalfExtents,
+                    _settings.Enemy.DirectionInterval,
+                    _settings.Enemy.MovementSpeed * _settings.Enemy.DirectionInterval);
                 character.BindController(controller);
-                _controllers.Add(controller);
-                contactDamage.Initialize(character, settings.ContactDamage);
-                visual.Initialize(visualSettings);
+                contactDamage.Initialize(character, _settings.Enemy.ContactDamage);
+                animation.Initialize(character);
                 return character;
             }
             catch
             {
+                character?.Dispose();
+                characterObject.SetActive(false);
                 Object.Destroy(characterObject);
                 throw;
             }

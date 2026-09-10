@@ -5,64 +5,26 @@ namespace GhostArena
 {
     public sealed class MatchFactory
     {
-        private readonly GameplayConfig _config;
+        private readonly GameConfig _config;
+        private readonly ArenaScene _arenaScene;
         private readonly ControllersFactory _controllersFactory;
-        private readonly GameObject _playerPrefab;
-        private readonly GameObject _enemyPrefab;
-        private readonly GameObject _projectilePrefab;
-        private readonly Transform _playerSpawn;
-        private readonly Transform[] _enemySpawns;
-        private readonly Camera _gameplayCamera;
-        private readonly Vector2 _arenaHalfExtents;
 
         public MatchFactory(
-            GameplayConfig config,
-            ControllersFactory controllersFactory,
-            GameObject playerPrefab,
-            GameObject enemyPrefab,
-            GameObject projectilePrefab,
-            Transform playerSpawn,
-            Transform[] enemySpawns,
-            Camera gameplayCamera,
-            Vector2 arenaHalfExtents)
+            GameConfig config,
+            ArenaScene arenaScene,
+            ControllersFactory controllersFactory)
         {
             _config = config;
+            _arenaScene = arenaScene;
             _controllersFactory = controllersFactory;
-            _playerPrefab = playerPrefab;
-            _enemyPrefab = enemyPrefab;
-            _projectilePrefab = projectilePrefab;
-            _playerSpawn = playerSpawn;
-            _gameplayCamera = gameplayCamera;
-
-            if (arenaHalfExtents.x <= 0f || arenaHalfExtents.y <= 0f
-                || float.IsNaN(arenaHalfExtents.x) || float.IsInfinity(arenaHalfExtents.x)
-                || float.IsNaN(arenaHalfExtents.y) || float.IsInfinity(arenaHalfExtents.y))
-            {
-                throw new ArgumentOutOfRangeException(nameof(arenaHalfExtents));
-            }
-
-            _enemySpawns = (Transform[])enemySpawns.Clone();
-            _arenaHalfExtents = arenaHalfExtents;
         }
 
-        public SessionConfiguration CaptureConfiguration()
+        public GameplaySettings CaptureConfiguration()
         {
-            GameplaySettings gameplay = _config.CreateSettings();
-            GhostVisual playerVisualComponent = _playerPrefab.GetComponentInChildren<GhostVisual>(true);
-            GhostVisual enemyVisualComponent = _enemyPrefab.GetComponentInChildren<GhostVisual>(true);
-
-            if (playerVisualComponent == null || enemyVisualComponent == null)
-            {
-                string missingPrefab = playerVisualComponent == null ? _playerPrefab.name : _enemyPrefab.name;
-                throw new InvalidOperationException(missingPrefab + " prefab has no GhostVisual component.");
-            }
-
-            GhostVisualSettings playerVisual = playerVisualComponent.CreateSettings();
-            GhostVisualSettings enemyVisual = enemyVisualComponent.CreateSettings();
-            return new SessionConfiguration(gameplay, playerVisual, enemyVisual);
+            return _config.Gameplay.CreateSettings();
         }
 
-        public MatchRuntime Create(SessionConfiguration configuration)
+        public MatchRuntime Create(GameplaySettings settings)
         {
             Transform runtimeRoot = new GameObject("Session Runtime").transform;
             ControllersUpdateService controllers = new ControllersUpdateService();
@@ -73,44 +35,33 @@ namespace GhostArena
             try
             {
                 CharactersFactory charactersFactory = new CharactersFactory(
-                    _controllersFactory,
-                    controllers,
-                    _playerPrefab,
-                    _enemyPrefab,
-                    _projectilePrefab,
+                    _config,
+                    settings,
+                    _arenaScene,
                     runtimeRoot,
-                    _gameplayCamera,
-                    _arenaHalfExtents);
-                player = charactersFactory.CreatePlayer(
-                    _playerSpawn,
-                    configuration.Gameplay,
-                    configuration.PlayerVisual);
+                    _controllersFactory);
+                player = charactersFactory.CreatePlayer(_arenaScene.PlayerSpawnPoint);
                 EntityRegistry<Character> enemies = new EntityRegistry<Character>();
                 SessionStats stats = new SessionStats();
                 IGameCondition winCondition = ConditionFactory.CreateWin(
-                    configuration.Gameplay.WinRule,
+                    settings.WinRule,
                     stats,
                     player.Health,
-                    configuration.Gameplay.SurviveDuration,
-                    configuration.Gameplay.KillTarget);
+                    settings.SurviveDuration,
+                    settings.KillTarget);
                 IGameCondition loseCondition = ConditionFactory.CreateLose(
-                    configuration.Gameplay.LoseRule,
+                    settings.LoseRule,
                     stats,
                     player.Health,
-                    configuration.Gameplay.TotalSpawnsLimit);
+                    settings.TotalSpawnsLimit);
                 session = new GameSession(stats, winCondition, loseCondition);
                 spawner = new EnemySpawner(
                     charactersFactory,
-                    controllers,
-                    enemies,
-                    stats,
-                    _enemySpawns,
-                    configuration.Gameplay.SpawnInterval,
-                    configuration.Gameplay.Enemy,
-                    configuration.EnemyVisual);
+                    _arenaScene.EnemySpawnPoints,
+                    settings.SpawnInterval);
                 return new MatchRuntime(
                     runtimeRoot,
-                    configuration.Gameplay,
+                    settings,
                     session,
                     player,
                     enemies,
@@ -129,24 +80,5 @@ namespace GhostArena
             }
         }
 
-    }
-
-    public readonly struct SessionConfiguration
-    {
-        public SessionConfiguration(
-            GameplaySettings gameplay,
-            GhostVisualSettings playerVisual,
-            GhostVisualSettings enemyVisual)
-        {
-            Gameplay = gameplay;
-            PlayerVisual = playerVisual;
-            EnemyVisual = enemyVisual;
-        }
-
-        public GameplaySettings Gameplay { get; }
-
-        public GhostVisualSettings PlayerVisual { get; }
-
-        public GhostVisualSettings EnemyVisual { get; }
     }
 }

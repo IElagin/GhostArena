@@ -6,6 +6,7 @@ namespace GhostArena
     public sealed class MatchRuntime : IDisposable
     {
         private readonly Transform _runtimeRoot;
+        private bool _isGameplayActive;
         private bool _isDisposed;
 
         public MatchRuntime(
@@ -17,15 +18,15 @@ namespace GhostArena
             EnemySpawner spawner,
             ControllersUpdateService controllers)
         {
-            _runtimeRoot = runtimeRoot != null
-                ? runtimeRoot
-                : throw new ArgumentNullException(nameof(runtimeRoot));
+            _runtimeRoot = runtimeRoot;
             Settings = settings;
-            Session = session ?? throw new ArgumentNullException(nameof(session));
-            Player = player != null ? player : throw new ArgumentNullException(nameof(player));
-            Enemies = enemies ?? throw new ArgumentNullException(nameof(enemies));
-            Spawner = spawner ?? throw new ArgumentNullException(nameof(spawner));
-            Controllers = controllers ?? throw new ArgumentNullException(nameof(controllers));
+            Session = session;
+            Player = player;
+            Enemies = enemies;
+            Spawner = spawner;
+            Controllers = controllers;
+            Spawner.Spawned += OnEnemySpawned;
+            Controllers.Add(Player.Controller);
         }
 
         public GameplaySettings Settings { get; }
@@ -44,12 +45,22 @@ namespace GhostArena
 
         public void SetGameplayActive(bool isActive)
         {
+            _isGameplayActive = isActive && _isDisposed == false;
+
             if (Player != null)
             {
-                Player.SetGameplayActive(isActive && Player.Health.IsAlive);
+                Player.SetGameplayActive(_isGameplayActive && Player.Health.IsAlive);
             }
 
-            Spawner.SetGameplayActive(isActive);
+            foreach (Character enemy in Enemies.Items)
+            {
+                if (enemy != null)
+                {
+                    enemy.SetGameplayActive(_isGameplayActive);
+                }
+            }
+
+            Spawner.SetGameplayActive(_isGameplayActive);
         }
 
         public void Dispose()
@@ -59,15 +70,27 @@ namespace GhostArena
                 return;
             }
 
-            _isDisposed = true;
             SetGameplayActive(false);
+            _isDisposed = true;
 
             if (_runtimeRoot != null)
             {
                 _runtimeRoot.gameObject.SetActive(false);
             }
 
+            Spawner.Spawned -= OnEnemySpawned;
             Spawner.Dispose();
+            Character[] enemies = new Character[Enemies.Count];
+
+            for (int index = 0; index < Enemies.Count; index++)
+            {
+                enemies[index] = Enemies.Items[index];
+            }
+
+            foreach (Character enemy in enemies)
+            {
+                ReleaseEnemy(enemy, false);
+            }
 
             if (ReferenceEquals(Player, null) == false)
             {
@@ -82,6 +105,53 @@ namespace GhostArena
             {
                 UnityEngine.Object.Destroy(_runtimeRoot.gameObject);
             }
+        }
+
+        private void OnEnemySpawned(Character enemy)
+        {
+            enemy.Died += OnEnemyDied;
+
+            if (Enemies.Add(enemy) == false)
+            {
+                enemy.Died -= OnEnemyDied;
+                enemy.Dispose();
+                enemy.gameObject.SetActive(false);
+                UnityEngine.Object.Destroy(enemy.gameObject);
+                return;
+            }
+
+            Controllers.Add(enemy.Controller);
+            Session.Stats.RecordSpawn();
+            enemy.SetGameplayActive(_isGameplayActive);
+        }
+
+        private void ReleaseEnemy(Character enemy, bool wasKilled)
+        {
+            if (ReferenceEquals(enemy, null))
+            {
+                return;
+            }
+
+            enemy.Died -= OnEnemyDied;
+
+            if (Enemies.Remove(enemy) == false)
+            {
+                return;
+            }
+
+            Controllers.Remove(enemy.Controller);
+            enemy.Dispose();
+            Session.Stats.RecordRemoval(wasKilled);
+
+            if (enemy != null)
+            {
+                UnityEngine.Object.Destroy(enemy.gameObject);
+            }
+        }
+
+        private void OnEnemyDied(Character enemy)
+        {
+            ReleaseEnemy(enemy, true);
         }
     }
 }
