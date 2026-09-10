@@ -23,6 +23,8 @@ namespace GhostArena
         [Header("Player")]
         [Tooltip("Player health at the start of each session.")]
         [SerializeField] private int _playerMaximumHealth = 3;
+        [Tooltip("Scaled seconds of protection from all enemy contacts after an accepted contact hit.")]
+        [SerializeField] private float _playerContactGracePeriod = 0.65f;
         [Tooltip("Player movement speed in world units per second.")]
         [SerializeField] private float _playerMovementSpeed = 5f;
 
@@ -57,6 +59,7 @@ namespace GhostArena
                 _loseRule,
                 _enemyLimit,
                 _playerMaximumHealth,
+                _playerContactGracePeriod,
                 _playerMovementSpeed,
                 new EnemySettings(
                     _enemyMaximumHealth,
@@ -86,6 +89,7 @@ namespace GhostArena
             ValidatePositive(_killTarget, "Kill target");
             ValidatePositive(_enemyLimit, "Alive enemy limit");
             ValidatePositive(_playerMaximumHealth, "Player maximum health");
+            ValidatePositiveFinite(_playerContactGracePeriod, "Player contact grace period");
             ValidatePositiveFinite(_playerMovementSpeed, "Player movement speed");
             ValidatePositive(_enemyMaximumHealth, "Enemy maximum health");
             ValidatePositiveFinite(_enemyMovementSpeed, "Enemy movement speed");
@@ -123,6 +127,7 @@ namespace GhostArena
             LoseRule loseRule,
             int enemyLimit,
             int playerMaximumHealth,
+            float playerContactGracePeriod,
             float playerMovementSpeed,
             EnemySettings enemy,
             float spawnInterval,
@@ -134,6 +139,7 @@ namespace GhostArena
             LoseRule = loseRule;
             EnemyLimit = enemyLimit;
             PlayerMaximumHealth = playerMaximumHealth;
+            PlayerContactGracePeriod = playerContactGracePeriod;
             PlayerMovementSpeed = playerMovementSpeed;
             Enemy = enemy;
             SpawnInterval = spawnInterval;
@@ -151,6 +157,8 @@ namespace GhostArena
         public int EnemyLimit { get; }
 
         public int PlayerMaximumHealth { get; }
+
+        public float PlayerContactGracePeriod { get; }
 
         public float PlayerMovementSpeed { get; }
 

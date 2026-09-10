@@ -72,7 +72,8 @@ namespace GhostArena
                     new Health(_settings.PlayerMaximumHealth),
                     mover,
                     null,
-                    rotator);
+                    rotator,
+                    _settings.PlayerContactGracePeriod);
                 Weapon weapon = new Weapon(
                     character,
                     weaponMount.Muzzle,

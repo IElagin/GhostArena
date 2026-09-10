@@ -183,7 +183,7 @@ Rigidbody:
   m_UseGravity: 0
   m_IsKinematic: 0
   m_Interpolate: 1
-  m_Constraints: 84
+  m_Constraints: 116
   m_CollisionDetection: 0
 --- !u!136 &2553025713439996461
 CapsuleCollider:
@@ -192,7 +192,7 @@ CapsuleCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4853446602475246186}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 13400000, guid: 5f1e73207436049d08861a10ebb64ba9, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0

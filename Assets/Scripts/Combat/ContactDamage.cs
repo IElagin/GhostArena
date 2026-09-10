@@ -57,7 +57,14 @@ namespace GhostArena
 
             if (alreadyTouching == false)
             {
-                target.TryTakeDamage(_damage);
+                if (target is IContactDamageable contactTarget)
+                {
+                    contactTarget.TryTakeContactDamage(_damage);
+                }
+                else
+                {
+                    target.TryTakeDamage(_damage);
+                }
             }
         }
 

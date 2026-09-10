@@ -3,11 +3,13 @@ using UnityEngine;
 
 namespace GhostArena
 {
-    public sealed class Character : MonoBehaviour, IDamageable, IDisposable
+    public sealed class Character : MonoBehaviour, IContactDamageable, IDisposable
     {
         private Controller _controller;
         private bool _isDisposed;
         private bool _isInitialized;
+        private float _contactGracePeriod;
+        private double _nextContactDamageTime;
 
         public event Action<Character> Died;
 
@@ -29,7 +31,8 @@ namespace GhostArena
             Health health,
             IDirectionalMover directionalMover,
             IDestinationMover destinationMover,
-            IDirectionalRotator rotator)
+            IDirectionalRotator rotator,
+            float contactGracePeriod = 0f)
         {
             if (_isInitialized)
             {
@@ -41,6 +44,13 @@ namespace GhostArena
                 throw new ArgumentException("Character needs a movement mechanic.");
             }
 
+            if (contactGracePeriod < 0f || float.IsNaN(contactGracePeriod)
+                || float.IsInfinity(contactGracePeriod))
+            {
+                throw new ArgumentOutOfRangeException(nameof(contactGracePeriod));
+            }
+
+            _contactGracePeriod = contactGracePeriod;
             Health = health ?? throw new ArgumentNullException(nameof(health));
             DirectionalMover = directionalMover;
             DestinationMover = destinationMover;
@@ -97,6 +107,23 @@ namespace GhostArena
 
             Health.TakeDamage(damage);
             return true;
+        }
+
+        public bool TryTakeContactDamage(int damage)
+        {
+            if (IsGameplayActive == false || Health == null || Health.IsAlive == false
+                || Time.timeAsDouble < _nextContactDamageTime)
+            {
+                return false;
+            }
+
+            if (damage <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(damage));
+            }
+
+            _nextContactDamageTime = Time.timeAsDouble + _contactGracePeriod;
+            return TryTakeDamage(damage);
         }
 
         public void Dispose()
