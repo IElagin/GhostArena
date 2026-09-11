@@ -12,11 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 189cd698b41544fc4a9810bf47b00dbd, type: 3}
   m_Name: GameplayConfig
   m_EditorClassIdentifier: Assembly-CSharp::GhostArena.GameplayConfig
-  _winRule: 1
-  _surviveDuration: 60
-  _killTarget: 10
+  _winRule: 0
+  _surviveDuration: 90
+  _killTarget: 15
   _loseRule: 1
-  _enemyLimit: 25
+  _enemyLimit: 15
   _playerMaximumHealth: 3
   _playerContactGracePeriod: 0.65
   _playerMovementSpeed: 5
