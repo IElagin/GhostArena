@@ -54,3 +54,9 @@ crashlytics-build.properties
 *.aab
 *.unitypackage
 *.zip
+
+# Local recovery copies and crash diagnostics; keep on disk, outside publication.
+/Assets/Temp.meta
+/Assets/_Recovery/
+/Assets/_Recovery.meta
+/mono_crash.*
